@@ -12,8 +12,5 @@ dependencies {
     implementation(libs.bundles.backend)
     runtimeOnly(libs.postgresql)
     testImplementation(libs.bundles.backendTest)
-    testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.testcontainers:testcontainers-postgresql")
-    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testRuntimeOnly(libs.junitPlatformLauncher)
 }

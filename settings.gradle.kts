@@ -20,3 +20,5 @@ rootProject.name = "tiket"
 include("tiket-core")
 include("tiket-contracts")
 include("tiket-backend")
+include("tiket-print-api")
+include("tiket-print-console")
