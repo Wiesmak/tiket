@@ -38,7 +38,7 @@ class RaceDayRepository(
             day.rules.noWinnerPolicy.name
         )
         jdbc.update("INSERT INTO race_day_state VALUES (?,?,?)", day.id.value, state.phase.name, state.version)
-        day.races.forEach { races.insert(day.id, it) }
+        day.races.forEachIndexed { ordinal, race -> races.insert(day.id, race, ordinal) }
         day.pools.forEach { (key, rules) ->
             jdbc.update(
                 "INSERT INTO pool_rules VALUES (?,?,?,?)",
@@ -101,14 +101,15 @@ class RaceDayRepository(
 
 @Repository
 class RaceRepository(private val jdbc: JdbcTemplate, private val tx: PersistenceTransactions) {
-    fun insert(day: RaceDayId, race: RaceDefinition) = tx.required {
+    fun insert(day: RaceDayId, race: RaceDefinition, ordinal: Int = race.number - 1) = tx.required {
         jdbc.update(
-            "INSERT INTO race VALUES (?,?,?,?,?)",
+            "INSERT INTO race(id,race_day_id,number,title,racecourse_name,ordinal) VALUES (?,?,?,?,?,?)",
             race.id.value,
             day.value,
             race.number,
             race.title,
-            race.racecourseName
+            race.racecourseName,
+            ordinal
         )
         race.runners.forEachIndexed { i, r ->
             jdbc.update(
@@ -124,7 +125,7 @@ class RaceRepository(private val jdbc: JdbcTemplate, private val tx: Persistence
     }
 
     fun list(day: RaceDayId): List<RaceDefinition> = jdbc.query(
-        "SELECT id FROM race WHERE race_day_id=? ORDER BY number",
+        "SELECT id FROM race WHERE race_day_id=? ORDER BY ordinal",
         { r, _ -> RaceId(r.uuid("id")) },
         day.value
     ).map { load(day, it)!! }

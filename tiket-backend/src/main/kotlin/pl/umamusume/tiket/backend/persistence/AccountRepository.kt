@@ -19,7 +19,7 @@ class PlayerEntryRepository(private val jdbc: JdbcTemplate, private val tx: Pers
             entry.openingFreebet.amount
         )
         jdbc.update(
-            "INSERT INTO account_balance VALUES (?,?,?,0,0,0,0,false)",
+            "INSERT INTO account_balance(race_day_id,player_id,balance,accepted_stakes,refunded_stakes,winnings,version,cashed_out) VALUES (?,?,?,0,0,0,0,false)",
             entry.raceDayId.value,
             entry.playerId.value,
             entry.openingBalance.amount
@@ -28,8 +28,15 @@ class PlayerEntryRepository(private val jdbc: JdbcTemplate, private val tx: Pers
 
     fun load(day: RaceDayId, player: PlayerId): PlayerEntry? =
         jdbc.one("SELECT * FROM player_entry WHERE race_day_id=? AND player_id=?", day.value, player.value) {
-            PlayerEntry(day, player, it.money("opening_paid"), it.money("opening_freebet"))
+            val initial = PlayerEntry(day, player, it.money("opening_paid"), it.money("opening_freebet"))
+            jdbc.query("SELECT * FROM opening_funding_adjustment WHERE race_day_id=? AND player_id=? ORDER BY opening_version",
+                { r, _ -> r.money("added_paid") to r.money("added_promotional") }, day.value, player.value)
+                .fold(initial) { entry, addition -> entry.copy(openingPaid = entry.openingPaid + addition.first,
+                    openingFreebet = entry.openingFreebet + addition.second) }
         }
+    fun list(day: RaceDayId): List<PlayerEntry> = jdbc.query(
+        "SELECT player_id FROM player_entry WHERE race_day_id=? ORDER BY player_id",
+        { r, _ -> PlayerId(r.uuid("player_id")) }, day.value).map { load(day, it)!! }
 }
 
 @Repository
@@ -77,7 +84,7 @@ class AccountRepository(
                     r.money("accepted_stakes"),
                     r.money("refunded_stakes"),
                     r.money("winnings")
-                )
+                ), openingVersion = r.getLong("opening_version")
             ).getOrThrow()
             checked(
                 r.getBoolean("cashed_out") == history.any { it.type == MovementType.FINAL_WITHDRAWAL },
@@ -85,6 +92,17 @@ class AccountRepository(
             )
             account
         } ?: throw InvalidPersistenceException("Missing account projection")
+    }
+
+    /** Caller holds the day and account locks; the trigger also enforces pre-start ordering. */
+    fun addOpeningFunding(expected: Long, next: AccountSnapshot, paid: Long, promotional: Long) = tx.required {
+        val day = next.entry.raceDayId
+        val player = next.entry.playerId
+        require(next.version == Math.incrementExact(expected) && next.movements.isEmpty())
+        jdbc.update("INSERT INTO opening_funding_adjustment(race_day_id,player_id,opening_version,added_paid,added_promotional) VALUES (?,?,?,?,?)",
+            day.value, player.value, next.version, paid, promotional)
+        changed(jdbc.update("UPDATE account_balance SET balance=?,version=?,opening_version=? WHERE race_day_id=? AND player_id=? AND version=? AND opening_version=? AND NOT cashed_out",
+            next.balance.amount, next.version, next.version, day.value, player.value, expected, expected))
     }
 
     /** Validates complete history, appends suffix and advances projection atomically. No balance-only writes. */
@@ -105,7 +123,9 @@ class AccountRepository(
         )
         val additions = next.movements.drop(previous.movements.size)
         checked(additions.isNotEmpty(), "No new movements")
-        AccountSnapshot.reconstitute(next.entry, next.movements, next.version, AccountProjection.from(next))
+        AccountSnapshot.reconstitute(next.entry, next.movements, next.version, AccountProjection.from(next),
+            openingVersion = jdbc.queryForObject("SELECT opening_version FROM account_balance WHERE race_day_id=? AND player_id=?",
+                Long::class.java, day.value, player.value)!!)
             .getOrThrow()
         val cashout = additions.first().type == MovementType.FINAL_WITHDRAWAL
         checked(

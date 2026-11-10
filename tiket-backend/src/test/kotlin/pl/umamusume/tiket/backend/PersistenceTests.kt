@@ -471,7 +471,7 @@ class PersistenceTests {
         v1.migrate(); assertThat(v1.info().applied().filter { it.version != null }).hasSize(1)
         val all =
             Flyway.configure().dataSource(postgres.jdbcUrl, postgres.username, postgres.password).schemas(schema).load()
-        all.migrate(); all.validate(); assertThat(all.info().applied().filter { it.version != null }).hasSize(2)
+        all.migrate(); all.validate(); assertThat(all.info().applied().filter { it.version != null }).hasSize(3)
         assertThat(all.migrate().migrationsExecuted).isZero()
         val missing =
             Flyway.configure().dataSource(postgres.jdbcUrl, postgres.username, postgres.password).schemas(schema)
@@ -541,6 +541,55 @@ class PersistenceTests {
         ).getOrThrow()
         accounts.append(before.version, after)
         assertThatThrownBy { accounts.append(before.version, after) }.isInstanceOf(StaleVersionException::class.java)
+    }
+
+    @Test
+    fun openingFundingRejectsExistingFinancialActivity() {
+        val f = fixture()
+        save(f, purchase(f))
+        val service = context.getBean(pl.umamusume.tiket.backend.application.EnrollmentApplicationService::class.java)
+        assertThatThrownBy {
+            service.fund(pl.umamusume.tiket.contracts.v1.AddOpeningFundingRequest.newBuilder()
+                .setRaceDayId(f.day.id.value.toString()).setPlayerId(f.entry.playerId.value.toString())
+                .setExpectedAccountVersion(1).setAdditionalPaid(1).setIdempotencyKey("activity").build())
+        }.isInstanceOf(pl.umamusume.tiket.backend.application.CommandPrecondition::class.java)
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM opening_funding_adjustment WHERE race_day_id=?",
+            Long::class.java, f.day.id.value)).isZero()
+    }
+
+    @Test
+    fun v2StoredDataBackfillsRaceOrder() {
+        val schema = "v2_" + UUID.randomUUID().toString().replace("-", "")
+        val migration = Flyway.configure().dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
+            .schemas(schema).target("2").load()
+        migration.migrate()
+        java.sql.DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password).use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute("SET search_path TO " + schema)
+                val day = UUID.randomUUID()
+                statement.execute("INSERT INTO race_day VALUES ('$day','2026-11-10',42,'PLN','Europe/Warsaw','v1',10000,1,'HOUSE_RETAINS_POOL')")
+                statement.execute("INSERT INTO race_day_state VALUES ('$day','DRAFT',0)")
+                listOf(9,2).forEach { number ->
+                    statement.execute("INSERT INTO race VALUES ('${UUID.randomUUID()}','$day',$number,'Race','Course')")
+                }
+                val player=UUID.randomUUID()
+                statement.execute("INSERT INTO player_entry VALUES ('$day','$player',10,20)")
+                statement.execute("INSERT INTO account_balance VALUES ('$day','$player',30,0,0,0,0,false)")
+            }
+        }
+        Flyway.configure().dataSource(postgres.jdbcUrl, postgres.username, postgres.password).schemas(schema).load().migrate()
+        java.sql.DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password).use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute("SET search_path TO " + schema)
+                statement.executeQuery("SELECT number,ordinal FROM race ORDER BY ordinal").use { rows ->
+                    assertThat(rows.next()).isTrue(); assertThat(rows.getInt(1)).isEqualTo(2); assertThat(rows.getInt(2)).isZero()
+                    assertThat(rows.next()).isTrue(); assertThat(rows.getInt(1)).isEqualTo(9); assertThat(rows.getInt(2)).isEqualTo(1)
+                }
+                statement.executeQuery("SELECT opening_version,balance FROM account_balance").use { rows ->
+                    assertThat(rows.next()).isTrue(); assertThat(rows.getLong(1)).isZero(); assertThat(rows.getLong(2)).isEqualTo(30)
+                }
+            }
+        }
     }
 
     @Test

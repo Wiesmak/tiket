@@ -95,8 +95,8 @@ Phase 2 provides the V2 PostgreSQL schema, concrete JDBC repositories, validated
 reconstruction, version checks, transaction and locking helpers, and durable idempotency.
 The ledger is authoritative; account snapshots replay and reconcile history, while projection
 totals support efficient display reads. No core APIs were changed.
-Business application services and RPCs, printing, authentication, REST, gRPC-Web and frontend
-remain absent. See [persistence design](docs/backend-persistence.md) for boundaries and usage.
+Administration and enrollment application services/RPCs are implemented in Phase 3. Printing,
+authentication, REST, gRPC-Web and frontend remain absent. See [persistence design](docs/backend-persistence.md) for boundaries and usage.
 Docker is required for PersistenceTests: it deliberately fails rather than silently skipping
 the Phase 2 integration suite. Tests cover V1 upgrades, round trips, reconciliation, rollback,
 corruption detection and independent-connection concurrency.
@@ -146,3 +146,11 @@ Operation boundaries convert both into structured rejections.
 
 See [domain model](docs/domain-model.md), [betting rules](docs/betting-rules.md),
 and [financial rules](docs/financial-rules.md). The integration test is an executable consumer example.
+
+## Phase 3 administration
+
+Complete race-day creation, publication/start/finalization, betting windows, enrollment and pre-start
+paid/promotional funding are available through typed gRPC. See [Phase 3](docs/phase3-administration.md).
+Definitions are immutable one-shot creations; draft editing is deferred.
+**Administrative endpoints have no authentication or authorization. Keep plaintext on loopback until
+production authentication, authorization and TLS are implemented.** Purchases and settlement remain deferred.

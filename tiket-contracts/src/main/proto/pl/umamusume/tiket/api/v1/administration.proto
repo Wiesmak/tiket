@@ -1,0 +1,67 @@
+syntax = "proto3";
+package pl.umamusume.tiket.api.v1;
+option java_package = "pl.umamusume.tiket.contracts.v1";
+option java_multiple_files = true;
+
+enum PoolType { POOL_TYPE_UNSPECIFIED = 0; WIN = 1; QUINELLA = 2; EXACTA = 3; TRIFECTA = 4; }
+enum NoWinnerPolicy { NO_WINNER_POLICY_UNSPECIFIED = 0; HOUSE_RETAINS_POOL = 1; }
+enum DayPhase { DAY_PHASE_UNSPECIFIED = 0; DRAFT = 1; READY = 2; RUNNING = 3; FINALIZING = 4; COMPLETED = 5; CLOSED = 6; }
+enum RacePhase { RACE_PHASE_UNSPECIFIED = 0; SCHEDULED = 1; BETTING_OPEN = 2; BETTING_CLOSED = 3; RESULT_PROPOSED = 4; RESULT_VERIFIED = 5; SETTLED = 6; VOIDED = 7; }
+message Runner { string horse_id = 1; string program_number = 2; string display_name = 3; }
+message PoolConfiguration { PoolType type = 1; int64 unit_stake = 2; int32 take_basis_points = 3; }
+message RaceConfiguration {
+ string race_id = 1; int32 number = 2; string racecourse_name = 3; string title = 4;
+ repeated Runner runners = 5; repeated PoolConfiguration pools = 6;
+}
+message RaceDayConfiguration {
+ string race_day_id = 1; string event_date = 2; int32 display_number = 3; string currency = 4;
+ string time_zone = 5; string rules_version = 6; int32 maximum_coupon_legs = 7;
+ int32 maximum_open_races = 8; NoWinnerPolicy no_winner_policy = 9; repeated RaceConfiguration races = 10;
+}
+message CreateRaceDayRequest { RaceDayConfiguration definition = 1; string idempotency_key = 2; }
+message DayQuery { string race_day_id = 1; }
+message DayCommand { string race_day_id = 1; int64 expected_version = 2; string idempotency_key = 3; }
+message DayAcknowledgement { string race_day_id = 1; DayPhase phase = 2; int64 version = 3; }
+message RaceDayInformation { RaceDayConfiguration definition = 1; DayAcknowledgement status = 2; }
+message RaceQuery { string race_day_id = 1; string race_id = 2; }
+message RaceCommand {
+ string race_day_id = 1; string race_id = 2; int64 expected_day_version = 3;
+ int64 expected_race_version = 4; string idempotency_key = 5;
+}
+message RaceAcknowledgement { string race_day_id = 1; string race_id = 2; RacePhase phase = 3; int64 version = 4; }
+message RaceInformation { RaceConfiguration definition = 1; RaceAcknowledgement status = 2; }
+message RaceList { repeated RaceInformation races = 1; }
+message EnrollPlayerRequest {
+ string race_day_id = 1; string player_id = 2; int64 opening_paid = 3; int64 opening_promotional = 4;
+ int64 expected_day_version = 5; string idempotency_key = 6;
+}
+message AddOpeningFundingRequest {
+ string race_day_id = 1; string player_id = 2; int64 additional_paid = 3; int64 additional_promotional = 4;
+ int64 expected_account_version = 5; string idempotency_key = 6;
+}
+message EnrollmentQuery { string race_day_id = 1; string player_id = 2; }
+message EnrollmentInformation {
+ string race_day_id = 1; string player_id = 2; int64 opening_paid = 3; int64 opening_promotional = 4;
+ int64 balance = 5; int64 account_version = 6; int64 opening_version = 7;
+}
+message PlayerList { repeated EnrollmentInformation players = 1; }
+service RaceDayService {
+ rpc CreateRaceDay(CreateRaceDayRequest) returns (DayAcknowledgement);
+ rpc GetRaceDay(DayQuery) returns (RaceDayInformation);
+ rpc PublishRaceDay(DayCommand) returns (DayAcknowledgement);
+ rpc StartRaceDay(DayCommand) returns (DayAcknowledgement);
+ rpc FinalizeRaceDay(DayCommand) returns (DayAcknowledgement);
+}
+service RaceService {
+ rpc ListRaces(DayQuery) returns (RaceList);
+ rpc GetRace(RaceQuery) returns (RaceInformation);
+ rpc GetRaceStatus(RaceQuery) returns (RaceAcknowledgement);
+ rpc OpenBetting(RaceCommand) returns (RaceAcknowledgement);
+ rpc CloseBetting(RaceCommand) returns (RaceAcknowledgement);
+}
+service EnrollmentService {
+ rpc EnrollPlayer(EnrollPlayerRequest) returns (EnrollmentInformation);
+ rpc AddOpeningFunding(AddOpeningFundingRequest) returns (EnrollmentInformation);
+ rpc GetEnrollment(EnrollmentQuery) returns (EnrollmentInformation);
+ rpc ListPlayers(DayQuery) returns (PlayerList);
+}

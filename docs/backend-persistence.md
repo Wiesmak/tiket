@@ -19,7 +19,7 @@ ordered ledger replay and validates the stored AccountProjection. There is no sa
 for a policy-ready snapshot from projection totals alone. Efficient totals reads return the
 AccountProjection value, never an AccountSnapshot. Ordinary domain policy calls currently replay
 history; a separately reviewed core API will be needed for bounded-cost historical snapshots.
-Opening funding is frozen in player_entry and has no in-event funding movement. No extra wallets.
+Opening funding starts in immutable player_entry; V3 adds append-only pre-start adjustments. No extra wallets.
 
 RaceResult constructors do not validate finishers; adapters validate roster membership, uniqueness,
 revision and verified arity. Exceptional results are stored but cannot be used by normal core
@@ -30,7 +30,7 @@ All compound writes run in Spring transactions. Application services must wrap c
 PersistenceTransactions.required: purchase writes header, legs, debit, pool projections and
 idempotency; refunds write terminal resolutions, credits, pool reductions and state; settlement
 writes four pools, outcomes, credits and state; cashout writes both terminal movements and projection.
-No application orchestration or business RPC is implemented here.
+Phase 3 application services compose the administrative operations described below.
 
 Lock order: day state when event-wide coordination is needed, then race state, accounts sorted
 by UUID text, pools sorted by bet-type name, then subordinate records. Lock helpers require an
@@ -106,4 +106,14 @@ conflicts, independent-transaction contention and complete rollback. Transport t
 a database-free configuration; the PostgreSQL foundation test still exercises the full application.
 Phase 3 can compose these repositories inside PersistenceTransactions.required after acquiring
 PersistenceLocks in the documented order, call core policies, and store their plans. Purchase,
-refund, settlement, enrollment and administration application services remain to be implemented.
+refund and settlement services remain deferred. Phase 3 implements enrollment and administration.
+
+## V3 administration support
+
+V3 preserves V1/V2 and immutable player_entry. Effective opening funds are original amounts plus
+append-only opening_funding_adjustment rows. account_balance.opening_version advances with the account
+version before activity; AccountSnapshot.reconstitute receives this version, including after restart.
+Account append validation also retains openingVersion. No funding movements or extra wallets are created.
+Triggers reject late/activity funding and reconcile adjustment sequences/projections at commit.
+Race ordinal preserves planned order; existing V2 races backfill by number. New definitions store list indices.
+The Phase 3 application services now compose the persistence primitives; see [administration](phase3-administration.md).

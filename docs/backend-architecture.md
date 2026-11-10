@@ -34,3 +34,11 @@ Build conventions retain a single Kotlin version and Java 25 toolchain. The Spri
 plugin applies only to backend. Contracts explicitly configures its own protoc and gRPC
 generator, and uses the Boot BOM for compatible message/stub dependencies. Core's
 dependencies and calculations are unchanged.
+
+## Phase 3 implementation
+
+The gRPC -> application -> core/persistence direction is now implemented for administration and enrollment.
+RaceDayApplicationService, RaceApplicationService and EnrollmentApplicationService orchestrate policies,
+locks, expected versions and transactions. AdministrationCommands stores exact Protobuf acknowledgements
+in durable idempotency references. Three thin generated-service adapters map sanitized errors.
+See [Phase 3](phase3-administration.md) for the RPC inventory and security boundary.
