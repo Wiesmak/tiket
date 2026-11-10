@@ -61,3 +61,13 @@ Four pools settle in one transaction; grouped account credits append once per pl
 writes race state before changing result status, then reconstructs final state before commit.
 The only core behavior correction clears a selected proposal on void. No framework or version changes,
 new wallet, printing changes or Phase 6 commands are introduced. See [Phase 5](phase5-refunds-settlement.md).
+
+## Phase 6 final accounting
+
+AccountApplicationService coordinates validated ledger reads, core withdrawal quotes and
+atomic two-movement cashout. FinalAccountingProof establishes terminal race/pool/leg evidence
+for completion and replays all enrolled accounts for closure. AccountGrpcService exposes the
+new typed v1 account API. RaceDayApplicationService retains day locks through proof and update.
+V1–V4 are reused without a new migration; cashout increments the account version once.
+See [Phase 6](phase6-accounting-closure.md) for proofs, transactions, receipts, performance
+tradeoffs and the boundary between registered cashout and actual disbursement.

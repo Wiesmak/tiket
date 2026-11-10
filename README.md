@@ -173,4 +173,12 @@ RaceService supports scratches and race voiding with exact active-leg refunds. R
 immutable proposals, verification, complete four-pool settlement and bounded result/leg history.
 All financial effects, incremental pool reductions and idempotent acknowledgements commit together.
 See [Phase 5](docs/phase5-refunds-settlement.md) for RPC formats, arithmetic, locks and recovery.
-Final withdrawals, promotional forfeiture execution and event completion/closure remain Phase 6.
+Final accounting and event completion/closure are implemented in Phase 6.
+
+## Phase 6 final accounting
+
+RaceDayService now supports authoritative completion and closure. AccountService provides
+validated balances, withdrawal quotes, terminal cashout, movement history and durable receipts.
+See [Phase 6](docs/phase6-accounting-closure.md) for financial proofs, replay and limitations.
+Registered cashout does not confirm physical payment. Keep financial RPCs on loopback;
+authentication, TLS and operational disbursement integration remain future work.

@@ -1,0 +1,44 @@
+syntax = "proto3";
+package pl.umamusume.tiket.api.v1;
+option java_package = "pl.umamusume.tiket.contracts.v1";
+option java_multiple_files = true;
+import "pl/umamusume/tiket/api/v1/administration.proto";
+
+message AccountQuery { string race_day_id = 1; string player_id = 2; }
+message AccountInformation {
+ string race_day_id = 1; string player_id = 2; string currency = 3; DayPhase phase = 4;
+ int64 opening_paid = 5; int64 opening_promotional = 6; int64 accepted_stakes = 7;
+ int64 refunded_stakes = 8; int64 qualifying_turnover = 9; int64 credited_winnings = 10;
+ int64 balance = 11; int64 account_version = 12; bool cashed_out = 13;
+}
+message WithdrawalQuoteInformation {
+ AccountInformation account = 1; int64 unlocked_promotional = 2;
+ int64 withdrawable = 3; int64 forfeitable = 4; int64 race_day_version = 5;
+}
+message CashOutRequest {
+ string race_day_id = 1; string player_id = 2; int64 expected_day_version = 3;
+ int64 expected_account_version = 4; string idempotency_key = 5;
+}
+message CashoutReceipt {
+ string race_day_id = 1; string player_id = 2; string currency = 3;
+ int64 withdrawn = 4; int64 promotional_forfeiture = 5; int64 balance = 6;
+ int64 account_version = 7; string cashed_out_at = 8; string receipt_reference = 9;
+}
+enum AccountMovementKind {
+ ACCOUNT_MOVEMENT_KIND_UNSPECIFIED = 0; COUPON_STAKE = 1; LEG_REFUND = 2;
+ WINNINGS = 3; FINAL_WITHDRAWAL = 4; PROMOTIONAL_FORFEITURE = 5;
+}
+message AccountMovementsRequest { AccountQuery account = 1; int32 page_size = 2; int64 after_sequence = 3; }
+message FinancialMovement {
+ int64 sequence = 1; string movement_key = 2; AccountMovementKind kind = 3;
+ int64 amount = 4; string created_at = 5; optional string coupon_id = 6;
+ optional int32 leg_ordinal = 7; optional string settlement_id = 8;
+}
+message AccountMovements { repeated FinancialMovement movements = 1; optional int64 next_sequence = 2; }
+service AccountService {
+ rpc GetAccount(AccountQuery) returns (AccountInformation);
+ rpc GetWithdrawalQuote(AccountQuery) returns (WithdrawalQuoteInformation);
+ rpc CashOut(CashOutRequest) returns (CashoutReceipt);
+ rpc ListAccountMovements(AccountMovementsRequest) returns (AccountMovements);
+ rpc GetCashoutReceipt(AccountQuery) returns (CashoutReceipt);
+}

@@ -51,6 +51,8 @@ service RaceDayService {
  rpc PublishRaceDay(DayCommand) returns (DayAcknowledgement);
  rpc StartRaceDay(DayCommand) returns (DayAcknowledgement);
  rpc FinalizeRaceDay(DayCommand) returns (DayAcknowledgement);
+ rpc CompleteRaceDay(DayCommand) returns (DayAcknowledgement);
+ rpc CloseRaceDay(DayCommand) returns (DayAcknowledgement);
 }
 service RaceService {
  rpc ScratchHorse(ScratchHorseRequest) returns (RefundAcknowledgement);

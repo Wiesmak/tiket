@@ -11,7 +11,7 @@ import pl.umamusume.tiket.core.validation.getOrThrow
 class RaceDayApplicationService(
     private val days: RaceDayRepository, private val races: RaceRepository,
     private val tx: PersistenceTransactions, private val locks: PersistenceLocks,
-    private val commands: AdministrationCommands
+    private val commands: AdministrationCommands, private val proof: FinalAccountingProof
 ) {
     fun create(request: CreateRaceDayRequest): DayAcknowledgement {
         require(request.hasDefinition())
@@ -39,12 +39,19 @@ class RaceDayApplicationService(
     fun transition(request: DayCommand, target: RaceDayPhase): DayAcknowledgement {
         val id = RaceDayId(uuid(request.raceDayId))
         require(request.expectedVersion >= 0)
-        require(target in setOf(RaceDayPhase.READY, RaceDayPhase.RUNNING, RaceDayPhase.FINALIZING))
+        require(target != RaceDayPhase.DRAFT)
         return commands.execute(target.name, id.value.toString(), request.idempotencyKey, request, DayAcknowledgement::parseFrom) {
             val state = locked(id)
             version(request.expectedVersion, state.version)
             val day = definition(id)
-            val next = RaceDayLifecyclePolicy.transition(day, state, target, states(day)).getOrThrow()
+            if (target == RaceDayPhase.COMPLETED && state.phase != RaceDayPhase.FINALIZING ||
+                target == RaceDayPhase.CLOSED && state.phase != RaceDayPhase.COMPLETED)
+                throw CommandPrecondition("Invalid final accounting phase")
+            val raceStates = states(day)
+            val outstanding = if (target == RaceDayPhase.COMPLETED) proof.completion(day, raceStates) else emptySet()
+            val finalized = target == RaceDayPhase.CLOSED && proof.closure(id)
+            val next = RaceDayLifecyclePolicy.transition(day, state, target, raceStates,
+                outstandingLegs = outstanding, accountsCashedOut = finalized).getOrThrow()
             days.update(id, state.version, next)
             dayAck(id, next)
         }

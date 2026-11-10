@@ -29,7 +29,8 @@ internal fun <T> respond(observer: StreamObserver<T>, work: () -> T) {
                 ErrorCode.INVALID_TRANSITION, ErrorCode.DAY_NOT_RUNNING, ErrorCode.INCONSISTENT_ACCOUNT,
                 ErrorCode.ALREADY_SETTLED, ErrorCode.BETTING_CLOSED, ErrorCode.QUOTE_CHANGED,
                 ErrorCode.UNSUPPORTED_RESULT, ErrorCode.RESULT_NOT_VERIFIED, ErrorCode.ALREADY_REFUNDED,
-                ErrorCode.INSUFFICIENT_BALANCE, ErrorCode.PLAYER_NOT_ENROLLED -> Status.FAILED_PRECONDITION
+                ErrorCode.INSUFFICIENT_BALANCE, ErrorCode.PLAYER_NOT_ENROLLED,
+                ErrorCode.WITHDRAWAL_PROHIBITED -> Status.FAILED_PRECONDITION
                 ErrorCode.INCONSISTENT_POOL -> Status.INTERNAL
                 ErrorCode.EXPANSION_LIMIT -> Status.RESOURCE_EXHAUSTED
                 else -> Status.INVALID_ARGUMENT
@@ -57,6 +58,8 @@ class RaceDayGrpcService(private val service: RaceDayApplicationService) : RaceD
     override fun publishRaceDay(r: DayCommand, o: StreamObserver<DayAcknowledgement>) = respond(o) { service.transition(r, RaceDayPhase.READY) }
     override fun startRaceDay(r: DayCommand, o: StreamObserver<DayAcknowledgement>) = respond(o) { service.transition(r, RaceDayPhase.RUNNING) }
     override fun finalizeRaceDay(r: DayCommand, o: StreamObserver<DayAcknowledgement>) = respond(o) { service.transition(r, RaceDayPhase.FINALIZING) }
+    override fun completeRaceDay(r: DayCommand, o: StreamObserver<DayAcknowledgement>) = respond(o) { service.transition(r, RaceDayPhase.COMPLETED) }
+    override fun closeRaceDay(r: DayCommand, o: StreamObserver<DayAcknowledgement>) = respond(o) { service.transition(r, RaceDayPhase.CLOSED) }
 }
 @GrpcService
 class RaceGrpcService(private val service: RaceApplicationService, private val financial: RaceFinancialApplicationService) : RaceServiceGrpc.RaceServiceImplBase() {

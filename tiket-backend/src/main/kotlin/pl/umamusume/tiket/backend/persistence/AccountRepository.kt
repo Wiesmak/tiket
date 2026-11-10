@@ -45,6 +45,20 @@ class AccountRepository(
     private val tx: PersistenceTransactions,
     private val entries: PlayerEntryRepository
 ) {
+    fun history(day: RaceDayId, player: PlayerId, after: Long, limit: Int, terminalOnly: Boolean = false) =
+        jdbc.query("""SELECT * FROM account_movement WHERE race_day_id=? AND player_id=? AND sequence>?
+            AND (NOT ? OR movement_type IN ('FINAL_WITHDRAWAL','PROMOTIONAL_FORFEITURE')) ORDER BY sequence LIMIT ?""",
+            { r, _ -> pl.umamusume.tiket.contracts.v1.FinancialMovement.newBuilder()
+                .setSequence(r.getLong("sequence")).setMovementKey(r.getString("movement_key"))
+                .setKind(pl.umamusume.tiket.contracts.v1.AccountMovementKind.valueOf(r.getString("movement_type")))
+                .setAmount(r.getLong("amount")).setCreatedAt(r.getTimestamp("created_at").toInstant().toString())
+                .apply {
+                    r.getString("coupon_id")?.let { couponId = it }
+                    (r.getObject("leg_ordinal") as? Int)?.let { legOrdinal = it }
+                    r.getString("settlement_id")?.let { settlementId = it }
+                }.build()
+            }, day.value, player.value, after, terminalOnly, limit)
+
     fun movements(day: RaceDayId, player: PlayerId): List<AccountMovement> =
         jdbc.query("SELECT * FROM account_movement WHERE race_day_id=? AND player_id=? ORDER BY sequence", { r, _ ->
             val coupon = r.getObject("coupon_id", UUID::class.java)?.let(::CouponId)

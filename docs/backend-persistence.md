@@ -138,3 +138,13 @@ checks both statuses. Settlement inserts its header/four pools, outcomes, groupe
 payouts and final race state in foreign-key-compatible order. AccountSnapshot still replays full history.
 No historical coupon or print row changes. See [Phase 5](phase5-refunds-settlement.md) for sequencing,
 conservation, deterministic locks, replay, corruption detection, concurrency and rollback tests.
+
+## Phase 6 final accounting
+
+AccountApplicationService coordinates validated ledger reads, core withdrawal quotes and
+atomic two-movement cashout. FinalAccountingProof establishes terminal race/pool/leg evidence
+for completion and replays all enrolled accounts for closure. AccountGrpcService exposes the
+new typed v1 account API. RaceDayApplicationService retains day locks through proof and update.
+V1–V4 are reused without a new migration; cashout increments the account version once.
+See [Phase 6](phase6-accounting-closure.md) for proofs, transactions, receipts, performance
+tradeoffs and the boundary between registered cashout and actual disbursement.
