@@ -22,6 +22,67 @@ class AccountSnapshot internal constructor(val entry: PlayerEntry, movements: Li
     companion object {
         fun opening(entry: PlayerEntry) = AccountSnapshot(entry, emptyList(), entry.openingBalance,
             Money.ZERO,Money.ZERO,Money.ZERO,0)
+
+        /**
+         * Replays ordered authoritative movements. openingVersion is the version of the frozen
+         * opening-funding record (including pre-start funding edits). Cashout is one version step.
+         */
+        fun reconstitute(entry: PlayerEntry, movements: List<AccountMovement>, version: Long,
+                         expectedProjection: AccountProjection? = null,
+                         openingVersion: Long = 0): Decision<AccountSnapshot> = decide {
+            ensure(openingVersion >= 0 && version >= 0, ErrorCode.INCONSISTENT_ACCOUNT, "negative account version")
+            val history = frozen(movements)
+            ensure(history.all { it.key.isNotBlank() } && history.map { it.key }.distinct().size == history.size,
+                ErrorCode.DUPLICATE_OPERATION, "movement identities must be unique and nonblank")
+            var account = AccountSnapshot(entry, emptyList(), entry.openingBalance,
+                Money.ZERO, Money.ZERO, Money.ZERO, openingVersion)
+            var index = 0
+            while (index < history.size) {
+                val movement = history[index]
+                if (movement.type in setOf(MovementType.FINAL_WITHDRAWAL, MovementType.PROMOTIONAL_FORFEITURE)) {
+                    ensure(index + 2 == history.size, ErrorCode.INCONSISTENT_ACCOUNT,
+                        "cashout requires exactly two terminal movements")
+                    val withdrawal = movement
+                    val forfeiture = history[index + 1]
+                    val quote = WithdrawalPolicy.hypothetical(account)
+                    ensure(withdrawal.type == MovementType.FINAL_WITHDRAWAL &&
+                        forfeiture.type == MovementType.PROMOTIONAL_FORFEITURE &&
+                        withdrawal.amount == quote.withdrawable && forfeiture.amount == quote.forfeitable &&
+                        listOf(withdrawal, forfeiture).all {
+                            it.couponId == null && it.legId == null && it.settlementId == null
+                        }, ErrorCode.INCONSISTENT_ACCOUNT, "invalid final withdrawal/forfeiture")
+                    account = AccountSnapshot(entry, history, Money.ZERO, account.acceptedStakes,
+                        account.refundedStakes, account.winnings, Math.incrementExact(account.version))
+                    index += 2
+                } else {
+                    ensure(movement.couponId == null || movement.legId == null ||
+                        movement.couponId == movement.legId.couponId,
+                        ErrorCode.INCONSISTENT_ACCOUNT, "movement coupon/leg ownership mismatch")
+                    when (movement.type) {
+                        MovementType.COUPON_STAKE -> ensure(movement.amount.amount > 0 &&
+                            movement.legId == null && movement.settlementId == null,
+                            ErrorCode.INCONSISTENT_ACCOUNT, "invalid stake movement")
+                        MovementType.LEG_REFUND -> ensure(movement.amount.amount > 0 && movement.settlementId == null,
+                            ErrorCode.INCONSISTENT_ACCOUNT, "invalid refund movement")
+                        else -> Unit
+                    }
+                    account = AccountProjector.apply(account, movement).getOrThrow()
+                    index++
+                }
+            }
+            ensure(account.version == version, ErrorCode.INCONSISTENT_ACCOUNT, "account version does not match replay")
+            ensure(expectedProjection == null || expectedProjection == AccountProjection.from(account),
+                ErrorCode.INCONSISTENT_ACCOUNT, "stored projection differs from movement replay")
+            account
+        }
+    }
+}
+/** Optional stored projection used only for reconciliation; never a source of balances. */
+data class AccountProjection(val balance: Money, val acceptedStakes: Money,
+                             val refundedStakes: Money, val winnings: Money) {
+    companion object {
+        fun from(account: AccountSnapshot) = AccountProjection(account.balance, account.acceptedStakes,
+            account.refundedStakes, account.winnings)
     }
 }
 object AccountProjector {
@@ -72,6 +133,8 @@ object AccountProjector {
         val quote = WithdrawalPolicy.quote(snapshot,day).getOrThrow()
         ensure(snapshot.movements.none { it.type in setOf(MovementType.FINAL_WITHDRAWAL,MovementType.PROMOTIONAL_FORFEITURE) },
             ErrorCode.DUPLICATE_OPERATION, "already cashed out")
+        ensure(snapshot.movements.none { it.key == "withdrawal" || it.key == "forfeiture" },
+            ErrorCode.DUPLICATE_OPERATION, "cashout movement identity already used")
         val movements = listOf(
             AccountMovement("withdrawal",MovementType.FINAL_WITHDRAWAL,quote.withdrawable),
             AccountMovement("forfeiture",MovementType.PROMOTIONAL_FORFEITURE,quote.forfeitable))

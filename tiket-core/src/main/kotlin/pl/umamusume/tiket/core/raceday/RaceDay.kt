@@ -1,6 +1,7 @@
 package pl.umamusume.tiket.core.raceday
 
 import java.time.LocalDate
+import java.time.ZoneId
 import pl.umamusume.tiket.core.identity.*
 import pl.umamusume.tiket.core.betting.*
 import pl.umamusume.tiket.core.race.*
@@ -13,11 +14,12 @@ data class RaceDayRules(val maximumCouponLegs: Int = 10000, val maximumOpenRaces
 }
 class RaceDayDefinition(val id: RaceDayId, val date: LocalDate, val currency: String,
                         races: List<RaceDefinition>, val rulesVersion: String,
-                        pools: Map<PoolKey, PoolRules>, val rules: RaceDayRules = RaceDayRules()) {
+                        pools: Map<PoolKey, PoolRules>, val rules: RaceDayRules = RaceDayRules(),
+                        val displayNumber: Int, val timeZone: ZoneId) {
     val races = frozen(races)
     val pools = frozenMap(pools)
     init {
-        ensure(currency.isNotBlank() && rulesVersion.isNotBlank() && races.isNotEmpty() &&
+        ensure(displayNumber in 1..999 && currency.isNotBlank() && rulesVersion.isNotBlank() && races.isNotEmpty() &&
             races.map { it.id }.distinct().size == races.size &&
             races.map { it.number }.distinct().size == races.size &&
             pools.keys == races.flatMap { r -> BetType.entries.map { PoolKey(r.id,it) } }.toSet(),

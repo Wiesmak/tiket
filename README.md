@@ -18,11 +18,15 @@ Run Gradle with a Java 25 JVM (set JAVA_HOME appropriately):
 ```
 
 On Windows use gradlew.bat. Tests use Kotest on JUnit Platform, including reproducible generated
-cases and a complete two-race in-memory scenario.
+cases and a complete two-race in-memory scenario. Build also compiles an independent consumer source
+set against the core JAR without internal/friend access.
 
 ## Consumer entry points
 
-* Construct RaceDayDefinition, RaceDefinition, RaceDayState and RaceState snapshots.
+* Construct RaceDayDefinition (including displayNumber and timeZone), RaceDefinition (including racecourseName),
+  RaceDayState and RaceState snapshots.
+* Reload persisted records using CouponLeg.reconstitute, Coupon.reconstitute and AccountSnapshot.reconstitute;
+  see the domain documentation for historical eligibility, movement replay and version requirements.
 * Create PlayerEntry and AccountSnapshot.opening(entry) before starting the day.
 * Use RaceDayLifecyclePolicy for event transitions and opening betting.
 * Use CouponPricingCalculator.quote, then BetPlacementPolicy.purchase with optional quote.terms.

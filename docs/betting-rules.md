@@ -28,6 +28,7 @@ leaving other legs and historical coupons intact. A void refunds all remaining a
 Refunds exclude legs from pools and reverse qualifying turnover. Already refunded legs are skipped.
 Verified or settled races require exceptional administrative correction, never automatic reversal.
 
-Normal settlement requires a verified ordered result with at least three finishers to settle all four pools.
+Ordinary verification requires at least three distinct valid finishers, sufficient for all four pools.
+A provisional nonempty result may be incomplete and corrected before verification.
 Unknown, repeated or scratched finishers are invalid. Exceptional outcomes such as dead heats are
 explicitly unsupported; cancel/void or use a future administrative policy.

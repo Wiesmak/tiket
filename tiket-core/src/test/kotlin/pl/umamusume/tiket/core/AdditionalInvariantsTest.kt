@@ -29,7 +29,7 @@ class AdditionalInvariantsTest : FunSpec({
     test("configuration permits independently staged simultaneous races") {
         val f = Fixture()
         val day = RaceDayDefinition(f.day.id,f.day.date,f.day.currency,f.day.races,f.day.rulesVersion,
-            f.day.pools,RaceDayRules(maximumOpenRaces=2))
+            f.day.pools,RaceDayRules(maximumOpenRaces=2), f.day.displayNumber, f.day.timeZone)
         val initial = listOf(RaceState(f.race.id),RaceState(f.second.id))
         val first = RaceDayLifecyclePolicy.openBetting(day,f.running,f.race.id,initial).ok()
         val second = RaceDayLifecyclePolicy.openBetting(day,f.running,f.second.id,listOf(first,initial[1])).ok()

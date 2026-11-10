@@ -4,11 +4,16 @@ import pl.umamusume.tiket.core.identity.*
 import pl.umamusume.tiket.core.validation.*
 
 data class RaceRunner(val horseId: HorseId, val programNumber: String, val displayName: String)
-class RaceDefinition(val id: RaceId, val number: Int, val title: String, runners: List<RaceRunner>) {
+class RaceDefinition(val id: RaceId, val number: Int, val title: String, runners: List<RaceRunner>, val racecourseName: String) {
+    /** Includes ordered immutable runner/display data, not operational state. */
+    fun hasSameDefinition(other: RaceDefinition): Boolean =
+        id == other.id && number == other.number && title == other.title &&
+            racecourseName == other.racecourseName && runners == other.runners
+
     val runners = frozen(runners)
     val roster = frozenSet(runners.map { it.horseId })
     init {
-        ensure(number > 0 && runners.isNotEmpty() && roster.size == runners.size &&
+        ensure(racecourseName.isNotBlank() && number > 0 && runners.isNotEmpty() && roster.size == runners.size &&
             runners.map { it.programNumber }.distinct().size == runners.size,
             ErrorCode.INVALID_DEFINITION, "invalid race roster or number")
     }
@@ -33,6 +38,8 @@ object ResultValidator {
             result.finishers.distinct().size == result.finishers.size &&
             state.eligible(definition).containsAll(result.finishers), ErrorCode.INVALID_RESULT, "invalid finishers or race")
         ensure(result.kind == ResultKind.NORMAL, ErrorCode.UNSUPPORTED_RESULT, "exceptional result requires administrative policy")
+        ensure(result.status != ResultStatus.VERIFIED || result.finishers.size >= 3,
+            ErrorCode.INVALID_RESULT, "verified normal result requires at least three finishers")
         result
     }
 }

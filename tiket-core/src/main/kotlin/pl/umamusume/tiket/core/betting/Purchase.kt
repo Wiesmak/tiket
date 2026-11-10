@@ -22,7 +22,7 @@ object BetPlacementPolicy {
         ensure(enrollment != null && enrollment == account.entry && enrollment.raceDayId == day.id,
             ErrorCode.PLAYER_NOT_ENROLLED, "player not enrolled in this event")
         ensure(dayState.phase == RaceDayPhase.RUNNING, ErrorCode.DAY_NOT_RUNNING, "day not running")
-        ensure(day.races.any { it === race } && state.raceId == race.id && race.roster.containsAll(state.scratched),
+        ensure(day.races.any { it.hasSameDefinition(race) } && state.raceId == race.id && race.roster.containsAll(state.scratched),
             ErrorCode.INVALID_DEFINITION, "race context mismatch")
         ensure(state.phase == RacePhase.BETTING_OPEN, ErrorCode.BETTING_CLOSED, "race betting closed")
         ensure(account.movements.none { it.couponId == couponId }, ErrorCode.DUPLICATE_OPERATION, "coupon already debited")

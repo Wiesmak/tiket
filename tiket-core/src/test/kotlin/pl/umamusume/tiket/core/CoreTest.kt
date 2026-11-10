@@ -29,10 +29,11 @@ internal fun rejected(code: ErrorCode, decision: Decision<*>) {
     assertEquals(code,decision.error.code)
 }
 internal class Fixture(stake: Long = 10, take: Int = 1500) {
-    val race = RaceDefinition(RaceId(uuid(10)),1,"First",(1..5).map { RaceRunner(horse(it),"$it","Horse $it") })
-    val second = RaceDefinition(RaceId(uuid(11)),2,"Second",race.runners)
+    val race = RaceDefinition(RaceId(uuid(10)),1,"First",(1..5).map { RaceRunner(horse(it),"$it","Horse $it") }, racecourseName="Tokyo")
+    val second = RaceDefinition(RaceId(uuid(11)),2,"Second",race.runners, racecourseName="Tokyo")
     val day = RaceDayDefinition(RaceDayId(uuid(20)),LocalDate.of(2026,11,10),"PLN",listOf(race,second),"v1",
-        listOf(race,second).flatMap { r -> BetType.entries.map { PoolKey(r.id,it) to PoolRules(Money(stake),TakeRate(take)) } }.toMap())
+        listOf(race,second).flatMap { r -> BetType.entries.map { PoolKey(r.id,it) to PoolRules(Money(stake),TakeRate(take)) } }.toMap(),
+        displayNumber=1, timeZone=java.time.ZoneId.of("Europe/Warsaw"))
     val running = RaceDayState(RaceDayPhase.RUNNING,2)
     val open = RaceState(race.id,RacePhase.BETTING_OPEN,version=1)
     val entry = PlayerEntry(day.id,PlayerId(uuid(30)),Money(1000),Money(100))
