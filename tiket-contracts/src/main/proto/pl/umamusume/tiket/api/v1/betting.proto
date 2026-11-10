@@ -1,0 +1,66 @@
+syntax = "proto3";
+package pl.umamusume.tiket.api.v1;
+option java_package = "pl.umamusume.tiket.contracts.v1";
+option java_multiple_files = true;
+import "pl/umamusume/tiket/api/v1/administration.proto";
+
+message Position { oneof choice { string horse_id = 1; bool wall = 2; } }
+message PositionalSelection { repeated Position positions = 1; }
+message BoxSelection { repeated string horse_ids = 1; }
+message BettingSelection { oneof variant { PositionalSelection positional = 1; BoxSelection box = 2; } }
+message QuoteCouponRequest {
+ string race_day_id = 1; string race_id = 2; PoolType bet_type = 3;
+ BettingSelection selection = 4; int64 units_per_combination = 5;
+}
+message CouponPricing {
+ string race_day_id = 1; string race_id = 2; PoolType bet_type = 3; BettingSelection selection = 4;
+ int32 combination_count = 5; int64 units_per_combination = 6; int64 total_units = 7;
+ int64 unit_stake = 8; int64 total_stake = 9; string currency = 10;
+}
+message QuoteCouponResponse {
+ CouponPricing pricing = 1; int64 race_day_version = 2; int64 race_version = 3; string confirmation = 4;
+}
+message PurchaseCouponRequest {
+ string race_day_id = 1; string race_id = 2; string player_id = 3; string coupon_id = 4;
+ PoolType bet_type = 5; BettingSelection selection = 6; int64 units_per_combination = 7;
+ string quote_confirmation = 8; int64 expected_day_version = 9; int64 expected_race_version = 10;
+ optional int64 expected_account_version = 11; int32 point_of_sale_number = 12;
+ string cashier_identifier = 13; string idempotency_key = 14;
+}
+enum DispatchStatus { DISPATCH_STATUS_UNSPECIFIED = 0; PENDING = 1; CLAIMED = 2; RETRYING = 3; DISPATCHED = 4; PERMANENTLY_FAILED = 5; }
+enum PrintJobType { PRINT_JOB_TYPE_UNSPECIFIED = 0; ORIGINAL = 1; REPRINT = 2; }
+message PurchaseCouponResponse {
+ string coupon_id = 1; string player_id = 2; CouponPricing pricing = 3; string purchased_at = 4;
+ int64 account_version = 5; int64 balance = 6; string print_job_id = 7; DispatchStatus printing_status = 8;
+}
+message CouponQuery { string race_day_id = 1; string coupon_id = 2; }
+message PurchasedLeg { int32 ordinal = 1; repeated string horse_ids = 2; int64 units = 3; int64 stake = 4; string coupon_id = 5; }
+message CouponInformation {
+ string coupon_id = 1; string player_id = 2; CouponPricing pricing = 3; string purchased_at = 4;
+ int32 point_of_sale_number = 5; string cashier_identifier = 6; repeated PurchasedLeg legs = 7;
+}
+message ListPlayerCouponsRequest {
+ string race_day_id = 1; string player_id = 2; int32 page_size = 3; int32 offset = 4;
+}
+message CouponList { repeated CouponInformation coupons = 1; optional int32 next_offset = 2; }
+message PrintStatusQuery { string print_job_id = 1; }
+message PrintAttemptInformation {
+ string print_attempt_id = 1; string started_at = 2; string completed_at = 3; string result = 4; string error = 5;
+}
+message PrintStatus {
+ string print_job_id = 1; string coupon_id = 2; PrintJobType type = 3;
+ DispatchStatus status = 4; int32 attempt_count = 5; PrintAttemptInformation latest_attempt = 6; string last_error = 7;
+}
+message ReprintCouponRequest { string race_day_id = 1; string coupon_id = 2; string idempotency_key = 3; }
+service BettingService {
+ rpc QuoteCoupon(QuoteCouponRequest) returns (QuoteCouponResponse);
+ rpc PurchaseCoupon(PurchaseCouponRequest) returns (PurchaseCouponResponse);
+ rpc GetCoupon(CouponQuery) returns (CouponInformation);
+ rpc ListPlayerCoupons(ListPlayerCouponsRequest) returns (CouponList);
+}
+// Development only: unauthenticated; keep the server bound to loopback.
+service PrintingService {
+ rpc GetPrintStatus(PrintStatusQuery) returns (PrintStatus);
+ rpc ReprintCoupon(ReprintCouponRequest) returns (PrintStatus);
+}
+

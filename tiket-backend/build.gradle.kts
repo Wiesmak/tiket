@@ -7,6 +7,8 @@ version = "0.0.1-SNAPSHOT"
 description = "tiket-backend"
 
 dependencies {
+    implementation(project(":tiket-print-api"))
+    implementation(project(":tiket-print-console"))
     implementation(project(":tiket-core"))
     implementation(project(":tiket-contracts"))
     implementation(libs.bundles.backend)

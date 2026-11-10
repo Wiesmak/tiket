@@ -6,7 +6,9 @@ A Gradle multi-project monorepo for a parimutuel horse-betting system.
 | --- | --- | --- |
 | tiket-core | Deterministic Kotlin business logic, ordinary library JAR | None |
 | tiket-contracts | Protobuf messages and generated Java gRPC stubs, ordinary library JAR | None |
-| tiket-backend | Spring Boot executable, Netty gRPC, JDBC and Flyway | core, contracts |
+| tiket-backend | Spring Boot executable, Netty gRPC, JDBC and Flyway | core, contracts, print-api, print-console |
+| tiket-print-api | Immutable printer contract, ordinary Kotlin/JVM library | None |
+| tiket-print-console | Stdout ticket dispatch | print-api |
 
 Phase 1 preserves the Initializr-generated `TiketBackendApplication` in
 `pl.umamusume.tiket.backend`. Its dependency bundles and Spring convention are reused;
@@ -95,8 +97,10 @@ Phase 2 provides the V2 PostgreSQL schema, concrete JDBC repositories, validated
 reconstruction, version checks, transaction and locking helpers, and durable idempotency.
 The ledger is authoritative; account snapshots replay and reconcile history, while projection
 totals support efficient display reads. No core APIs were changed.
-Administration and enrollment application services/RPCs are implemented in Phase 3. Printing,
-authentication, REST, gRPC-Web and frontend remain absent. See [persistence design](docs/backend-persistence.md) for boundaries and usage.
+Administration and enrollment services/RPCs are implemented in Phase 3. Phase 4 adds typed
+betting, atomic purchases and console dispatch through a transactional outbox.
+Authentication, REST, gRPC-Web and frontend remain absent. See [Phase 4](docs/phase4-betting-printing.md)
+and [persistence design](docs/backend-persistence.md) for boundaries and usage.
 Docker is required for PersistenceTests: it deliberately fails rather than silently skipping
 the Phase 2 integration suite. Tests cover V1 upgrades, round trips, reconciliation, rollback,
 corruption detection and independent-connection concurrency.
@@ -153,4 +157,12 @@ Complete race-day creation, publication/start/finalization, betting windows, enr
 paid/promotional funding are available through typed gRPC. See [Phase 3](docs/phase3-administration.md).
 Definitions are immutable one-shot creations; draft editing is deferred.
 **Administrative endpoints have no authentication or authorization. Keep plaintext on loopback until
-production authentication, authorization and TLS are implemented.** Purchases and settlement remain deferred.
+production authentication, authorization and TLS are implemented.** Settlement remains deferred.
+
+## Phase 4 betting and printing
+
+Quote/purchase normal, wall and box coupons through BettingService. Purchased legs, debit,
+incremental pool contributions, exact idempotent response and original print job commit together.
+PrintingService provides status and explicit idempotent reprints. Console dispatch runs after
+commit with bounded retries and crash recovery; duplicate output is possible after a crash.
+Disable the worker with `tiket.printing.enabled=false`. See [Phase 4](docs/phase4-betting-printing.md).

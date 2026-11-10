@@ -471,7 +471,7 @@ class PersistenceTests {
         v1.migrate(); assertThat(v1.info().applied().filter { it.version != null }).hasSize(1)
         val all =
             Flyway.configure().dataSource(postgres.jdbcUrl, postgres.username, postgres.password).schemas(schema).load()
-        all.migrate(); all.validate(); assertThat(all.info().applied().filter { it.version != null }).hasSize(3)
+        all.migrate(); all.validate(); assertThat(all.info().applied().filter { it.version != null }).hasSize(4)
         assertThat(all.migrate().migrationsExecuted).isZero()
         val missing =
             Flyway.configure().dataSource(postgres.jdbcUrl, postgres.username, postgres.password).schemas(schema)

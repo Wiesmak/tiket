@@ -106,7 +106,8 @@ conflicts, independent-transaction contention and complete rollback. Transport t
 a database-free configuration; the PostgreSQL foundation test still exercises the full application.
 Phase 3 can compose these repositories inside PersistenceTransactions.required after acquiring
 PersistenceLocks in the documented order, call core policies, and store their plans. Purchase,
-refund and settlement services remain deferred. Phase 3 implements enrollment and administration.
+refund and settlement services remain deferred. Phase 3 implements enrollment and administration;
+Phase 4 implements purchases.
 
 ## V3 administration support
 
@@ -117,3 +118,13 @@ Account append validation also retains openingVersion. No funding movements or e
 Triggers reject late/activity funding and reconcile adjustment sequences/projections at commit.
 Race ordinal preserves planned order; existing V2 races backfill by number. New definitions store list indices.
 The Phase 3 application services now compose the persistence primitives; see [administration](phase3-administration.md).
+
+## V4 betting and printing
+
+Purchases now compose coupon, batched legs, original eligibility, account movement/projection,
+incremental target pool UPSERTs, original print job and exact command acknowledgement in one transaction.
+PoolRepository.acceptPurchase takes only a core PurchasePlan and reconciles checked stake/unit totals.
+V4 adds print_job and print_attempt, a unique original-job index, pending/history indexes and a
+player coupon index. Claim leases use SKIP LOCKED; owner checks prevent stale completion.
+Printing dispatch occurs outside database transactions, with bounded retry and at-least-once recovery.
+See [Phase 4](phase4-betting-printing.md) for schema fields, state transitions and security limits.

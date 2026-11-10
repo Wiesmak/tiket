@@ -13,7 +13,7 @@ import pl.umamusume.tiket.core.validation.*
 import java.time.DateTimeException
 
 private val logger = org.slf4j.LoggerFactory.getLogger("AdministrationGrpc")
-private fun <T> respond(observer: StreamObserver<T>, work: () -> T) {
+internal fun <T> respond(observer: StreamObserver<T>, work: () -> T) {
     try {
         observer.onNext(work())
         observer.onCompleted()
@@ -27,7 +27,9 @@ private fun <T> respond(observer: StreamObserver<T>, work: () -> T) {
             is DomainException -> when (e.error.code) {
                 ErrorCode.DUPLICATE_OPERATION -> Status.ALREADY_EXISTS
                 ErrorCode.INVALID_TRANSITION, ErrorCode.DAY_NOT_RUNNING, ErrorCode.INCONSISTENT_ACCOUNT,
-                ErrorCode.ALREADY_SETTLED -> Status.FAILED_PRECONDITION
+                ErrorCode.ALREADY_SETTLED, ErrorCode.BETTING_CLOSED, ErrorCode.QUOTE_CHANGED,
+                ErrorCode.INSUFFICIENT_BALANCE, ErrorCode.PLAYER_NOT_ENROLLED -> Status.FAILED_PRECONDITION
+                ErrorCode.EXPANSION_LIMIT -> Status.RESOURCE_EXHAUSTED
                 else -> Status.INVALID_ARGUMENT
             }
             is IllegalArgumentException, is DateTimeException, is ArithmeticException -> Status.INVALID_ARGUMENT

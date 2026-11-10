@@ -79,18 +79,19 @@ class CouponRepository(
             }
         }
         purchaseEligibility.forEach { jdbc.update("INSERT INTO coupon_eligibility VALUES (?,?)", c.id.value, it.value) }
-        c.legs.forEach { l ->
-            jdbc.update(
-                "INSERT INTO coupon_leg VALUES (?,?,?,?,?,?,?,?,?,?)",
-                c.id.value,
-                l.id.ordinal,
-                c.raceId.value,
-                c.betType.name,
-                *atomArgs(l.bet),
-                l.units.value,
-                l.stake.amount
-            )
-        }
+        jdbc.batchUpdate(
+            "INSERT INTO coupon_leg VALUES (?,?,?,?,?,?,?,?,?,?)",
+            c.legs.map { l ->
+                arrayOf(
+                    c.id.value,
+                    l.id.ordinal,
+                    c.raceId.value,
+                    c.betType.name,
+                    *atomArgs(l.bet),
+                    l.units.value,
+                    l.stake.amount
+                )
+            })
         Unit
     }
 

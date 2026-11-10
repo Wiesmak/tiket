@@ -42,6 +42,50 @@ class PoolRepository(
     fun list(day: RaceDayId, race: RaceId): List<PoolSnapshot> =
         BetType.entries.mapNotNull { load(day, PoolKey(race, it)) }
 
+    /** Only a core-authorized purchase delta may enter this path. Caller holds day/race/account locks. */
+    fun acceptPurchase(day: RaceDayId, plan: pl.umamusume.tiket.core.betting.PurchasePlan): PoolSnapshot = tx.required {
+        val key = plan.poolKey
+        checked(day == plan.coupon.raceDayId, "Foreign purchase")
+        checked(
+            jdbc.queryForList(
+                "SELECT race_id FROM pool_state WHERE race_id=? AND bet_type=? FOR UPDATE",
+                key.raceId.value, key.betType.name
+            ).size == 1, "Missing pool"
+        )
+        val old = load(day, key) ?: throw InvalidPersistenceException("Missing pool")
+        val unitStake = jdbc.queryForObject(
+            "SELECT unit_stake FROM pool_rules WHERE race_id=? AND bet_type=?",
+            Long::class.java, key.raceId.value, key.betType.name
+        )!!
+        val addedUnits = plan.poolUnitIncreases.values.fold(0L, Math::addExact)
+        checked(Money(unitStake) * addedUnits == plan.coupon.totalStake, "Invalid purchase delta")
+        val totalUnits = Math.addExact(old.units.values.fold(0L, Math::addExact), addedUnits)
+        val stake = old.validStake + plan.coupon.totalStake
+        changed(
+            jdbc.update(
+                "UPDATE pool_state SET active_units=?,valid_stake=?,version=? WHERE race_id=? AND bet_type=? AND version=?",
+                totalUnits,
+                stake.amount,
+                Math.incrementExact(old.version),
+                key.raceId.value,
+                key.betType.name,
+                old.version
+            )
+        )
+        jdbc.batchUpdate(
+            "INSERT INTO pool_selection_units VALUES (?,?,?,?,?,?,?) ON CONFLICT(race_id,bet_type,canonical) DO UPDATE SET units=pool_selection_units.units+EXCLUDED.units",
+            plan.poolUnitIncreases.map { (bet, units) ->
+                Math.addExact(old.units[bet] ?: 0, units)
+                arrayOf(key.raceId.value, key.betType.name, *atomArgs(bet), units)
+            })
+        val next = load(day, key) ?: throw InvalidPersistenceException("Missing updated pool")
+        checked(
+            next.validStake == stake && next.version == Math.incrementExact(old.version),
+            "Pool reconciliation failed"
+        )
+        next
+    }
+
     fun update(day: RaceDayId, expected: Long, next: PoolSnapshot) = tx.required {
         require(next.version == Math.incrementExact(expected))
         checked(races.load(day, next.key.raceId) != null, "Foreign pool")

@@ -24,7 +24,7 @@ classes are needed; no future implementations are scaffolded now.
 
 Flyway owns schema evolution. V1 establishes migration history only. Phase 2 adds the business schema,
 JDBC repositories, idempotency and concurrency primitives; see [persistence](backend-persistence.md).
-Printing will eventually use a separate printer contract and adapter; neither exists yet.
+Phase 4 printing uses separate print-api and print-console libraries, wired by backend configuration.
 
 The default process uses no web application context and binds plaintext gRPC to
 127.0.0.1:9090. PostgreSQL credentials are supplied externally. Production TLS and
@@ -42,3 +42,12 @@ RaceDayApplicationService, RaceApplicationService and EnrollmentApplicationServi
 locks, expected versions and transactions. AdministrationCommands stores exact Protobuf acknowledgements
 in durable idempotency references. Three thin generated-service adapters map sanitized errors.
 See [Phase 3](phase3-administration.md) for the RPC inventory and security boundary.
+
+## Phase 4 implementation
+
+BettingApplicationService orchestrates core quote/purchase policies and JDBC repositories.
+BettingGrpcService exposes structured selections and immutable coupon queries.
+PrintOutbox owns durable jobs/attempts and reprint idempotency; PrintingGrpcService provides status.
+PrintWorker claims jobs transactionally, dispatches outside transactions and records outcomes.
+Backend resolves TicketPrintData; print-api has no core/framework dependencies and print-console
+only depends on print-api. See [Phase 4](phase4-betting-printing.md) for contracts and recovery semantics.
