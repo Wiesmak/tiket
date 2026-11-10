@@ -1,23 +1,40 @@
-# tiket
+# tiket-core
 
-This project uses [Gradle](https://gradle.org/).
-To build and run the application, use the *Gradle* tool window by clicking the Gradle icon in the right-hand toolbar,
-or run it directly from the terminal:
+A standalone deterministic Kotlin/JVM domain library for a preplanned parimutuel horse-betting race day.
+Targets Kotlin 2.4.x and Java 25. Runtime dependencies are limited to Kotlin and the JDK.
 
-* Run `./gradlew run` to build and run the application.
-* Run `./gradlew build` to only build the application.
-* Run `./gradlew check` to run all checks, including tests.
-* Run `./gradlew clean` to clean all build outputs.
+Implements Win, Quinella, Exacta and Trifecta; structured normal, wall and box selections;
+immutable priced coupons; purchase plans; pool settlement; leg refunds; lifecycle policies;
+single-balance accounts and promotional withdrawal eligibility.
 
-Note the usage of the Gradle Wrapper (`./gradlew`).
-This is the suggested way to use Gradle in production projects.
+No backend framework, persistence, network, clock, printing, frontend or simulator is included.
 
-[Learn more about the Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html).
+## Build
 
-[Learn more about Gradle tasks](https://docs.gradle.org/current/userguide/command_line_interface.html#common_tasks).
+Run Gradle with a Java 25 JVM (set JAVA_HOME appropriately):
 
-This project follows the suggested multi-module setup and consists of the `app` and `utils` subprojects.
-The shared build logic was extracted to a convention plugin located in `buildSrc`.
+```text
+./gradlew :tiket-core:clean :tiket-core:test :tiket-core:build
+```
 
-This project uses a version catalog (see `gradle/libs.versions.toml`) to declare and version dependencies
-and both a build cache and a configuration cache (see `gradle.properties`).
+On Windows use gradlew.bat. Tests use Kotest on JUnit Platform, including reproducible generated
+cases and a complete two-race in-memory scenario.
+
+## Consumer entry points
+
+* Construct RaceDayDefinition, RaceDefinition, RaceDayState and RaceState snapshots.
+* Create PlayerEntry and AccountSnapshot.opening(entry) before starting the day.
+* Use RaceDayLifecyclePolicy for event transitions and opening betting.
+* Use CouponPricingCalculator.quote, then BetPlacementPolicy.purchase with optional quote.terms.
+* Apply the returned debit with AccountProjector.apply in the same transaction that persists every coupon leg.
+* Use RefundPlanner for scratches and voids; persist its resulting state and resolutions atomically with credits.
+* Use PoolSnapshot.aggregate and RaceSettlementPlanner.plan for complete settlement.
+* Apply planned credits and the resulting settled race state atomically.
+* Use WithdrawalPolicy.quote after completion and AccountProjector.cashOut for final withdrawal/forfeiture.
+
+Expected failures return Decision.Rejected(DomainError). Construction of invalid value objects
+throws DomainException; overflowing direct value-object arithmetic throws ArithmeticException.
+Operation boundaries convert both into structured rejections.
+
+See [domain model](docs/domain-model.md), [betting rules](docs/betting-rules.md),
+and [financial rules](docs/financial-rules.md). The integration test is an executable consumer example.
