@@ -76,13 +76,49 @@ class PoolRepository(
             "INSERT INTO pool_selection_units VALUES (?,?,?,?,?,?,?) ON CONFLICT(race_id,bet_type,canonical) DO UPDATE SET units=pool_selection_units.units+EXCLUDED.units",
             plan.poolUnitIncreases.map { (bet, units) ->
                 Math.addExact(old.units[bet] ?: 0, units)
-                arrayOf(key.raceId.value, key.betType.name, *atomArgs(bet), units)
+                arrayOf<Any?>(key.raceId.value, key.betType.name, *atomArgs(bet), units)
             })
         val next = load(day, key) ?: throw InvalidPersistenceException("Missing updated pool")
         checked(
             next.validStake == stake && next.version == Math.incrementExact(old.version),
             "Pool reconciliation failed"
         )
+        next
+    }
+
+
+    /** Caller holds day, race, accounts and pool locks. Deltas come exclusively from the core plan. */
+    fun applyRefundDelta(day: RaceDayId, expected: Long, key: PoolKey,
+                         plan: pl.umamusume.tiket.core.settlement.RefundPlan): PoolSnapshot = tx.required {
+        checked(plan.resultingState.raceId == key.raceId, "Foreign refund")
+        val reduction = plan.poolReductions[key] ?: throw InvalidPersistenceException("Missing refund delta")
+        val old = load(day, key) ?: throw InvalidPersistenceException("Missing pool")
+        if (old.version != expected) throw StaleVersionException()
+        val deltas = plan.atomicUnitReductions.filterKeys { it.type == key.betType }
+        val units = deltas.values.fold(0L, Math::addExact)
+        checked(units == reduction.units && units > 0, "Invalid refund units")
+        val unitStake = jdbc.queryForObject("SELECT unit_stake FROM pool_rules WHERE race_id=? AND bet_type=?",
+            Long::class.java, key.raceId.value, key.betType.name)!!
+        checked(Money(unitStake) * units == reduction.stake, "Refund stake/unit mismatch")
+        val total = Math.subtractExact(old.units.values.fold(0L, Math::addExact), units)
+        checked(total >= 0 && old.validStake >= reduction.stake, "Refund exceeds pool")
+        val stake = old.validStake - reduction.stake
+        val remaining = deltas.map { (bet, n) ->
+            val before = old.units[bet] ?: throw InvalidPersistenceException("Missing selection")
+            checked(n > 0 && before >= n, "Refund exceeds selection")
+            Triple(bet, before, Math.subtractExact(before, n))
+        }
+        changed(jdbc.update("UPDATE pool_state SET active_units=?,valid_stake=?,version=? WHERE race_id=? AND bet_type=? AND version=?",
+            total, stake.amount, Math.incrementExact(expected), key.raceId.value, key.betType.name, expected))
+        val updates = remaining.filter { it.third > 0 }
+        val deletes = remaining.filter { it.third == 0L }
+        val counts = jdbc.batchUpdate("UPDATE pool_selection_units SET units=? WHERE race_id=? AND bet_type=? AND canonical=? AND units=?",
+            updates.map { (bet, before, after) -> arrayOf<Any?>(after, key.raceId.value, key.betType.name, bet.canonical, before) })
+        counts.forEach(::changed)
+        jdbc.batchUpdate("DELETE FROM pool_selection_units WHERE race_id=? AND bet_type=? AND canonical=? AND units=?",
+            deletes.map { (bet, before, _) -> arrayOf<Any?>(key.raceId.value, key.betType.name, bet.canonical, before) }).forEach(::changed)
+        val next = load(day, key) ?: throw InvalidPersistenceException("Missing reduced pool")
+        checked(next.validStake == stake && next.units.values.fold(0L, Math::addExact) == total, "Refund reconciliation failed")
         next
     }
 
@@ -154,6 +190,25 @@ class LegResolutionRepository(private val jdbc: JdbcTemplate, private val coupon
             resolution.settlementId?.value,
             timestamp(at)
         )
+    }
+
+
+    /** Validate against already reconstructed immutable coupons once, then batch terminal child writes. */
+    fun insertAll(day: RaceDayId, history: List<pl.umamusume.tiket.core.coupon.Coupon>,
+                  resolutions: List<LegResolution>, at: Instant = Instant.now()) {
+        checked(history.all { it.raceDayId == day }, "Foreign history")
+        val legs = history.flatMap { it.legs }.associateBy { it.id }
+        resolutions.forEach { r ->
+            val leg = legs[r.legId] ?: throw InvalidPersistenceException("Unknown leg")
+            checked(r.outcome != LegOutcome.ACTIVE &&
+                if (r.outcome == LegOutcome.REFUNDED) r.amount == leg.stake && r.settlementId == null
+                else r.settlementId != null && (r.outcome != LegOutcome.LOST || r.amount == Money.ZERO),
+                "Invalid terminal resolution")
+        }
+        jdbc.batchUpdate("INSERT INTO leg_resolution VALUES (?,?,?,?,?,?)", resolutions.map {
+            arrayOf<Any?>(it.legId.couponId.value, it.legId.ordinal, it.outcome.name, it.amount.amount,
+                it.settlementId?.value, timestamp(at))
+        })
     }
 
     fun list(day: RaceDayId, race: RaceId): Map<BetLegId, LegResolution> = jdbc.query(

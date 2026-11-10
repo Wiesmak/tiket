@@ -67,7 +67,9 @@ fun dayAck(id: RaceDayId, state: RaceDayState): DayAcknowledgement = DayAcknowle
     .setRaceDayId(id.value.toString()).setPhase(DayPhase.valueOf(state.phase.name)).setVersion(state.version).build()
 fun raceAck(day: RaceDayId, state: pl.umamusume.tiket.core.race.RaceState): RaceAcknowledgement = RaceAcknowledgement.newBuilder()
     .setRaceDayId(day.value.toString()).setRaceId(state.raceId.value.toString())
-    .setPhase(RacePhase.valueOf(state.phase.name)).setVersion(state.version).build()
+    .setPhase(RacePhase.valueOf(state.phase.name)).setVersion(state.version)
+    .addAllScratchedHorseIds(state.scratched.map { it.value.toString() }.sorted())
+    .setSelectedResultRevision(state.result?.revision ?: "").build()
 fun raceConfiguration(day: RaceDayDefinition, race: RaceDefinition): RaceConfiguration =
     RaceConfiguration.newBuilder().setRaceId(race.id.value.toString()).setNumber(race.number)
         .setTitle(race.title).setRacecourseName(race.racecourseName)

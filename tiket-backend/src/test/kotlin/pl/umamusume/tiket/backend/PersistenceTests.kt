@@ -609,4 +609,54 @@ class PersistenceTests {
         assertThat(idempotency.load(key)).isNull()
         assertThat(idempotency.execute(key, "f") { "completed" }).isEqualTo("completed")
     }
+
+    @Test
+    fun corePlannersConsumePersistedPhase4WallAndBoxLegs() {
+        val f = fixture()
+        listOf(
+            BetType.WIN to CouponSelection.Box(f.horses),
+            BetType.EXACTA to CouponSelection.Positional(listOf(PositionChoice.Horse(f.horses[0]), PositionChoice.Wall)),
+            BetType.QUINELLA to CouponSelection.Box(f.horses),
+            BetType.TRIFECTA to CouponSelection.Box(f.horses)
+        ).forEach { (type, selection) -> save(f, purchase(f, type, selection)) }
+        val history = coupons.list(f.day.id, f.race.id).map { it.coupon }
+        val refund = pl.umamusume.tiket.core.settlement.RefundPlanner.plan(f.race,
+            RaceState(f.race.id, RacePhase.BETTING_CLOSED),
+            pl.umamusume.tiket.core.settlement.RefundReason.Scratch(f.horses[3]), history).getOrThrow()
+        assertThat(refund.resolutions).hasSize(23)
+        val existing = refund.resolutions.associateBy { it.legId }
+        val result = RaceResult(f.race.id, "official", f.horses.take(3), ResultStatus.VERIFIED)
+        val state = RaceState(f.race.id, RacePhase.RESULT_VERIFIED, refund.resultingState.scratched, result, 3)
+        val snapshots = BetType.entries.associate { type ->
+            val key = PoolKey(f.race.id, type)
+            key to PoolSnapshot.aggregate(key, history, existing).getOrThrow()
+        }
+        val plan = pl.umamusume.tiket.core.settlement.RaceSettlementPlanner.plan(
+            SettlementId(UUID.randomUUID()), f.race, state,
+            BetType.entries.associateWith { f.day.pools.getValue(PoolKey(f.race.id, it)) },
+            snapshots, history, existing).getOrThrow()
+        assertThat(plan.pools).hasSize(4)
+        assertThat(plan.resolutions).hasSize(history.sumOf { it.legs.size } - existing.size)
+        assertThat(coupons.list(f.day.id, f.race.id).map { it.coupon.legs }).isEqualTo(history.map { it.legs })
+    }
+
+    @Test
+    fun incrementalRefundRetainsUnaffectedPoolsAndChecksVersions() {
+        val f = fixture()
+        val purchase = purchase(f, BetType.EXACTA,
+            CouponSelection.Positional(listOf(PositionChoice.Horse(f.horses[0]), PositionChoice.Wall)))
+        save(f, purchase)
+        pools.acceptPurchase(f.day.id, purchase)
+        val key = purchase.poolKey
+        val before = pools.load(f.day.id, key)!!
+        val other = pools.load(f.day.id, PoolKey(f.race.id, BetType.WIN))!!
+        val plan = pl.umamusume.tiket.core.settlement.RefundPlanner.plan(f.race, RaceState(f.race.id),
+            pl.umamusume.tiket.core.settlement.RefundReason.Scratch(f.horses[3]), listOf(purchase.coupon)).getOrThrow()
+        val next = pools.applyRefundDelta(f.day.id, before.version, key, plan)
+        assertThat(next.units).hasSize(2)
+        assertThat(next.validStake).isEqualTo(before.validStake - plan.poolReductions.getValue(key).stake)
+        assertThat(pools.load(f.day.id, other.key)!!.version).isEqualTo(other.version)
+        assertThatThrownBy { pools.applyRefundDelta(f.day.id, before.version, key, plan) }
+            .isInstanceOf(StaleVersionException::class.java)
+    }
 }

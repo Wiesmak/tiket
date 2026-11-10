@@ -51,3 +51,13 @@ PrintOutbox owns durable jobs/attempts and reprint idempotency; PrintingGrpcServ
 PrintWorker claims jobs transactionally, dispatches outside transactions and records outcomes.
 Backend resolves TicketPrintData; print-api has no core/framework dependencies and print-console
 only depends on print-api. See [Phase 4](phase4-betting-printing.md) for contracts and recovery semantics.
+
+## Phase 5 implementation
+
+RaceFinancialApplicationService coordinates RefundPlanner, ResultValidator, RaceLifecyclePolicy and
+RaceSettlementPlanner with the existing JDBC repositories and AdministrationCommands. RaceService
+adds scratch/void; ResultGrpcService exposes proposals, verification, settlement and bounded audit queries.
+Four pools settle in one transaction; grouped account credits append once per player. Verification
+writes race state before changing result status, then reconstructs final state before commit.
+The only core behavior correction clears a selected proposal on void. No framework or version changes,
+new wallet, printing changes or Phase 6 commands are introduced. See [Phase 5](phase5-refunds-settlement.md).

@@ -28,7 +28,9 @@ internal fun <T> respond(observer: StreamObserver<T>, work: () -> T) {
                 ErrorCode.DUPLICATE_OPERATION -> Status.ALREADY_EXISTS
                 ErrorCode.INVALID_TRANSITION, ErrorCode.DAY_NOT_RUNNING, ErrorCode.INCONSISTENT_ACCOUNT,
                 ErrorCode.ALREADY_SETTLED, ErrorCode.BETTING_CLOSED, ErrorCode.QUOTE_CHANGED,
+                ErrorCode.UNSUPPORTED_RESULT, ErrorCode.RESULT_NOT_VERIFIED, ErrorCode.ALREADY_REFUNDED,
                 ErrorCode.INSUFFICIENT_BALANCE, ErrorCode.PLAYER_NOT_ENROLLED -> Status.FAILED_PRECONDITION
+                ErrorCode.INCONSISTENT_POOL -> Status.INTERNAL
                 ErrorCode.EXPANSION_LIMIT -> Status.RESOURCE_EXHAUSTED
                 else -> Status.INVALID_ARGUMENT
             }
@@ -41,7 +43,8 @@ internal fun <T> respond(observer: StreamObserver<T>, work: () -> T) {
             Status.Code.NOT_FOUND -> "Requested record not found"
             Status.Code.ABORTED -> "State version conflict"
             Status.Code.ALREADY_EXISTS -> "Identity or idempotency conflict"
-            Status.Code.FAILED_PRECONDITION -> "Operation is not permitted in the current state"
+            Status.Code.FAILED_PRECONDITION -> if (e is DomainException && e.error.code == ErrorCode.UNSUPPORTED_RESULT)
+                "Exceptional results are unsupported" else "Operation is not permitted in the current state"
             else -> "Invalid request"
         }).asRuntimeException())
     }
@@ -56,7 +59,9 @@ class RaceDayGrpcService(private val service: RaceDayApplicationService) : RaceD
     override fun finalizeRaceDay(r: DayCommand, o: StreamObserver<DayAcknowledgement>) = respond(o) { service.transition(r, RaceDayPhase.FINALIZING) }
 }
 @GrpcService
-class RaceGrpcService(private val service: RaceApplicationService) : RaceServiceGrpc.RaceServiceImplBase() {
+class RaceGrpcService(private val service: RaceApplicationService, private val financial: RaceFinancialApplicationService) : RaceServiceGrpc.RaceServiceImplBase() {
+    override fun scratchHorse(r: ScratchHorseRequest, o: StreamObserver<RefundAcknowledgement>) = respond(o) { financial.scratch(r) }
+    override fun voidRace(r: RaceCommand, o: StreamObserver<RefundAcknowledgement>) = respond(o) { financial.voidRace(r) }
     override fun listRaces(r: DayQuery, o: StreamObserver<RaceList>) = respond(o) { service.list(r) }
     override fun getRace(r: RaceQuery, o: StreamObserver<RaceInformation>) = respond(o) { service.get(r) }
     override fun getRaceStatus(r: RaceQuery, o: StreamObserver<RaceAcknowledgement>) = respond(o) { service.get(r).status }

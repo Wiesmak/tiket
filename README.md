@@ -157,7 +157,7 @@ Complete race-day creation, publication/start/finalization, betting windows, enr
 paid/promotional funding are available through typed gRPC. See [Phase 3](docs/phase3-administration.md).
 Definitions are immutable one-shot creations; draft editing is deferred.
 **Administrative endpoints have no authentication or authorization. Keep plaintext on loopback until
-production authentication, authorization and TLS are implemented.** Settlement remains deferred.
+production authentication, authorization and TLS are implemented.** Settlement is implemented in Phase 5.
 
 ## Phase 4 betting and printing
 
@@ -166,3 +166,11 @@ incremental pool contributions, exact idempotent response and original print job
 PrintingService provides status and explicit idempotent reprints. Console dispatch runs after
 commit with bounded retries and crash recovery; duplicate output is possible after a crash.
 Disable the worker with `tiket.printing.enabled=false`. See [Phase 4](docs/phase4-betting-printing.md).
+
+## Phase 5 refunds and settlement
+
+RaceService supports scratches and race voiding with exact active-leg refunds. ResultService supports
+immutable proposals, verification, complete four-pool settlement and bounded result/leg history.
+All financial effects, incremental pool reductions and idempotent acknowledgements commit together.
+See [Phase 5](docs/phase5-refunds-settlement.md) for RPC formats, arithmetic, locks and recovery.
+Final withdrawals, promotional forfeiture execution and event completion/closure remain Phase 6.

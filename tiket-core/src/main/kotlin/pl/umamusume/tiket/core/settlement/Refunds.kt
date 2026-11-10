@@ -65,7 +65,7 @@ object RefundPlanner {
         // A proposed result is invalidated by a new scratch.
         val invalidate = reason is RefundReason.Scratch && changed && phase == RacePhase.RESULT_PROPOSED
         val next = RaceState(race.id,if(invalidate) RacePhase.BETTING_CLOSED else phase,scratched,
-            if(invalidate) null else state.result,if(changed) Math.incrementExact(state.version) else state.version)
+            if(invalidate || reason == RefundReason.VoidRace) null else state.result,if(changed) Math.incrementExact(state.version) else state.version)
         RefundPlan(state.version,next,resolutions,credits,couponTotals,playerTotals,reductions,atomic)
     }
 }

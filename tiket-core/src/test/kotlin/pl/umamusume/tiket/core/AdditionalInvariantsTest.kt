@@ -46,6 +46,17 @@ class AdditionalInvariantsTest : FunSpec({
         rejected(ErrorCode.INVALID_TRANSITION,RefundPlanner.plan(f.race,
             RaceState(f.race.id,RacePhase.RESULT_VERIFIED,result=proposed),RefundReason.Scratch(horse(5)),emptyList()))
     }
+    test("void clears the selected proposal and preserves historical result") {
+        val f = Fixture()
+        val result = RaceResult(f.race.id,"proposal",listOf(horse(1)),ResultStatus.PROPOSED)
+        val state = RaceState(f.race.id,RacePhase.RESULT_PROPOSED,result=result)
+        val plan = RefundPlanner.plan(f.race,state,RefundReason.VoidRace,emptyList()).ok()
+        assertEquals(RacePhase.VOIDED,plan.resultingState.phase)
+        assertNull(plan.resultingState.result)
+        assertEquals(1L,plan.resultingState.version)
+        assertEquals(listOf(horse(1)),result.finishers)
+        assertEquals(ResultStatus.PROPOSED,result.status)
+    }
     test("fixed-seed refund patterns conserve complete historical pools") {
         val random = Random(82187)
         repeat(80) {

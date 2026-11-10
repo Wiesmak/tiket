@@ -28,7 +28,7 @@ message RaceCommand {
  string race_day_id = 1; string race_id = 2; int64 expected_day_version = 3;
  int64 expected_race_version = 4; string idempotency_key = 5;
 }
-message RaceAcknowledgement { string race_day_id = 1; string race_id = 2; RacePhase phase = 3; int64 version = 4; }
+message RaceAcknowledgement { string race_day_id = 1; string race_id = 2; RacePhase phase = 3; int64 version = 4; repeated string scratched_horse_ids = 5; string selected_result_revision = 6; }
 message RaceInformation { RaceConfiguration definition = 1; RaceAcknowledgement status = 2; }
 message RaceList { repeated RaceInformation races = 1; }
 message EnrollPlayerRequest {
@@ -53,6 +53,8 @@ service RaceDayService {
  rpc FinalizeRaceDay(DayCommand) returns (DayAcknowledgement);
 }
 service RaceService {
+ rpc ScratchHorse(ScratchHorseRequest) returns (RefundAcknowledgement);
+ rpc VoidRace(RaceCommand) returns (RefundAcknowledgement);
  rpc ListRaces(DayQuery) returns (RaceList);
  rpc GetRace(RaceQuery) returns (RaceInformation);
  rpc GetRaceStatus(RaceQuery) returns (RaceAcknowledgement);
@@ -64,4 +66,48 @@ service EnrollmentService {
  rpc AddOpeningFunding(AddOpeningFundingRequest) returns (EnrollmentInformation);
  rpc GetEnrollment(EnrollmentQuery) returns (EnrollmentInformation);
  rpc ListPlayers(DayQuery) returns (PlayerList);
+}
+
+message ScratchHorseRequest { RaceCommand command = 1; string horse_id = 2; }
+message PlayerFinancialSummary { string player_id = 1; int64 amount = 2; }
+message PoolRefundSummary { PoolType type = 1; int64 refunded_stake = 2; int64 refunded_units = 3; }
+message RefundAcknowledgement {
+ RaceAcknowledgement status = 1; int64 refunded_legs = 2; int64 refunded_stake = 3;
+ repeated PlayerFinancialSummary players = 4; repeated PoolRefundSummary pools = 5;
+}
+enum OfficialResultKind { OFFICIAL_RESULT_KIND_UNSPECIFIED = 0; NORMAL = 1; EXCEPTIONAL = 2; }
+enum OfficialResultStatus { OFFICIAL_RESULT_STATUS_UNSPECIFIED = 0; PROPOSED = 1; VERIFIED = 2; }
+message SubmitResultRequest {
+ RaceCommand command = 1; string revision = 2; repeated string finisher_ids = 3; OfficialResultKind kind = 4;
+}
+message VerifyResultRequest { RaceCommand command = 1; string revision = 2; }
+message OfficialResult {
+ string race_day_id = 1; string race_id = 2; string revision = 3;
+ repeated string finisher_ids = 4; OfficialResultKind kind = 5; OfficialResultStatus status = 6;
+}
+message ResultAcknowledgement { RaceAcknowledgement status = 1; OfficialResult result = 2; }
+message ResultRevisionsRequest { RaceQuery race = 1; int32 page_size = 2; int32 offset = 3; }
+message ResultRevisions { repeated OfficialResult results = 1; optional int32 next_offset = 2; }
+message SettleRaceRequest { RaceCommand command = 1; string settlement_id = 2; }
+message SettlementQuery { string race_day_id = 1; string race_id = 2; string settlement_id = 3; }
+message PoolSettlementSummary {
+ PoolType type = 1; int64 valid_stake = 2; int64 winning_units = 3; int64 distributable = 4;
+ int64 dividend_per_unit = 5; int64 distributed = 6; int64 house_allocation = 7; int64 pool_version = 8;
+}
+message SettlementInformation {
+ string settlement_id = 1; RaceAcknowledgement status = 2; string result_revision = 3;
+ repeated PoolSettlementSummary pools = 4; repeated PlayerFinancialSummary players = 5;
+}
+enum TerminalLegOutcome { TERMINAL_LEG_OUTCOME_UNSPECIFIED = 0; REFUNDED = 1; WON = 2; LOST = 3; }
+message RaceLegResolutionsRequest { RaceQuery race = 1; int32 page_size = 2; int32 offset = 3; }
+message TerminalLegResolution { string coupon_id = 1; int32 ordinal = 2; TerminalLegOutcome outcome = 3; int64 amount = 4; string settlement_id = 5; }
+message RaceLegResolutions { repeated TerminalLegResolution resolutions = 1; optional int32 next_offset = 2; }
+service ResultService {
+ rpc SubmitResult(SubmitResultRequest) returns (ResultAcknowledgement);
+ rpc VerifyResult(VerifyResultRequest) returns (ResultAcknowledgement);
+ rpc GetResult(RaceQuery) returns (ResultAcknowledgement);
+ rpc ListResultRevisions(ResultRevisionsRequest) returns (ResultRevisions);
+ rpc SettleRace(SettleRaceRequest) returns (SettlementInformation);
+ rpc GetSettlement(SettlementQuery) returns (SettlementInformation);
+ rpc ListRaceLegResolutions(RaceLegResolutionsRequest) returns (RaceLegResolutions);
 }

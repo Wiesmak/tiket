@@ -105,9 +105,8 @@ cashout, four pool settlements, payout deduplication, terminal resolutions, cros
 conflicts, independent-transaction contention and complete rollback. Transport tests explicitly use
 a database-free configuration; the PostgreSQL foundation test still exercises the full application.
 Phase 3 can compose these repositories inside PersistenceTransactions.required after acquiring
-PersistenceLocks in the documented order, call core policies, and store their plans. Purchase,
-refund and settlement services remain deferred. Phase 3 implements enrollment and administration;
-Phase 4 implements purchases.
+PersistenceLocks in the documented order, call core policies, and store their plans. Phase 3 implements enrollment and administration; Phase 4 implements purchases;
+Phase 5 implements refunds, results and settlement.
 
 ## V3 administration support
 
@@ -128,3 +127,14 @@ V4 adds print_job and print_attempt, a unique original-job index, pending/histor
 player coupon index. Claim leases use SKIP LOCKED; owner checks prevent stale completion.
 Printing dispatch occurs outside database transactions, with bounded retry and at-least-once recovery.
 See [Phase 4](phase4-betting-printing.md) for schema fields, state transitions and security limits.
+
+## Phase 5 financial orchestration
+
+V1–V4 are unchanged and no V5 is required. Refunds batch terminal resolutions and use checked
+PoolRepository.applyRefundDelta to update only affected pool/selection rows and remove zero counts.
+The complete remaining active-leg aggregates are reconciled before and after reductions.
+Verification updates race_state before ResultRepository.verify inside one transaction; final reconstruction
+checks both statuses. Settlement inserts its header/four pools, outcomes, grouped account movements,
+payouts and final race state in foreign-key-compatible order. AccountSnapshot still replays full history.
+No historical coupon or print row changes. See [Phase 5](phase5-refunds-settlement.md) for sequencing,
+conservation, deterministic locks, replay, corruption detection, concurrency and rollback tests.
