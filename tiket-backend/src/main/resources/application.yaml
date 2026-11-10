@@ -1,3 +1,22 @@
 spring:
   application:
     name: tiket-backend
+  main:
+    web-application-type: none
+  grpc:
+    server:
+      address: ${GRPC_ADDRESS:127.0.0.1}
+      port: ${GRPC_PORT:9090}
+      shutdown:
+        grace-period: 10s
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/tiket?connectTimeout=5}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      connection-timeout: 5000
+      initialization-fail-timeout: 5000
+      maximum-pool-size: 10
+  flyway:
+    enabled: true
+    validate-on-migrate: true

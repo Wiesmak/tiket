@@ -14,6 +14,9 @@ java {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    minHeapSize = "64m"
+    maxHeapSize = "256m"
+    jvmArgs("-XX:ActiveProcessorCount=2")
     testLogging {
         events(TestLogEvent.FAILED, TestLogEvent.PASSED, TestLogEvent.SKIPPED)
     }

@@ -1,4 +1,104 @@
-# tiket-core
+# Tiket
+
+A Gradle multi-project monorepo for a parimutuel horse-betting system.
+
+| Module | Responsibility | Project dependencies |
+| --- | --- | --- |
+| tiket-core | Deterministic Kotlin business logic, ordinary library JAR | None |
+| tiket-contracts | Protobuf messages and generated Java gRPC stubs, ordinary library JAR | None |
+| tiket-backend | Spring Boot executable, Netty gRPC, JDBC and Flyway | core, contracts |
+
+Phase 1 preserves the Initializr-generated `TiketBackendApplication` in
+`pl.umamusume.tiket.backend`. Its dependency bundles and Spring convention are reused;
+Protobuf generation was moved to contracts. There were no nested settings or wrappers to remove.
+The root settings, wrapper and version catalog remain shared. `buildSrc/settings.gradle.kts`
+only configures Gradle's build logic, not a separate application.
+
+## Requirements and build
+
+Use JDK 25 and the checked-in Gradle 9.7.0 wrapper. Kotlin is 2.4.21, Spring Boot is
+exactly 4.1.2, and the Protobuf plugin is 0.9.6. Contracts explicitly configure protoc 4.36.2
+and grpc-java generator 1.84.1, aligned with Boot's managed runtime versions.
+Backend dependencies use Boot dependency management; contracts use its BOM without applying
+the Boot plugin. Only backend applies Boot and produces a bootJar.
+Generated sources stay under `tiket-contracts/build` and are ignored by Git.
+
+```shell
+./gradlew clean build
+./gradlew :tiket-contracts:build
+./gradlew :tiket-backend:test
+./gradlew :tiket-backend:bootJar
+```
+
+On Windows use `gradlew.bat`. On machines with limited Windows commit memory or
+Kotlin daemon socket failures, append `--max-workers=1 -Pkotlin.compiler.execution.strategy=in-process`.
+Shared test JVMs use a 64 MiB initial / 256 MiB maximum heap and two active processors.
+Protobuf 0.9.6 generation tasks are explicitly marked incompatible with Gradle's configuration
+cache; Gradle may discard that cache for builds involving those tasks. The build cache remains usable.
+
+Docker must be running for PostgreSQL Testcontainers tests.
+Without Docker those tests are reported as skipped; in-process and real Netty transport
+tests still execute. Integration tests use isolated PostgreSQL 18 containers, start the
+application twice against the same database, validate Flyway history, call Ping over
+loopback, and check shutdown of the listener and connection pool.
+
+## PostgreSQL and local startup
+
+Create a PostgreSQL database and a role allowed to run Flyway migrations in it. Configure
+an existing instance through environment variables; no database credentials are committed.
+
+| Variable | Default / purpose |
+| --- | --- |
+| DB_URL | `jdbc:postgresql://localhost:5432/tiket?connectTimeout=5` |
+| DB_USERNAME | Required database role |
+| DB_PASSWORD | Required database password |
+| GRPC_ADDRESS | `127.0.0.1`; keep plaintext development on loopback |
+| GRPC_PORT | `9090`; use `0` for an ephemeral test port |
+
+Spring's usual `SPRING_DATASOURCE_*` and `SPRING_GRPC_SERVER_*` property overrides
+also work. HikariCP uses a 5-second connection timeout, fail-fast initialization and at most
+10 pooled connections. Flyway runs at startup, validates migration checksums and fails
+startup if PostgreSQL is unavailable or migration validation fails. Configure a JDBC
+`connectTimeout` when supplying a custom URL.
+
+`V1__foundation.sql` is an intentionally table-free migration (`SELECT 1`), creating
+Flyway history only. It is not Flyway's `baselineOnMigrate` shortcut. Subsequent startups
+validate and reuse its existing history. Do not change applied migration contents.
+
+In IntelliJ, import the root Gradle project, set Project SDK and Gradle JVM to Java 25,
+reload Gradle, and run the existing `TiketBackendApplicationKt` main class in
+`tiket-backend`. Set DB_USERNAME, DB_PASSWORD and optionally DB_URL in the run
+configuration environment. Alternatively:
+
+```shell
+./gradlew :tiket-backend:bootRun
+java -jar tiket-backend/build/libs/tiket-backend-0.0.1-SNAPSHOT.jar
+```
+
+These are alternative launch commands. The application starts only a lifecycle-managed Netty
+gRPC server, with no HTTP application server. Stop it normally with IntelliJ Stop or Ctrl+C.
+
+## Ping
+
+With grpcurl installed, run from the repository root (the explicit proto avoids requiring
+server reflection):
+
+```shell
+grpcurl -plaintext -import-path tiket-contracts/src/main/proto -proto pl/umamusume/tiket/api/v1/system.proto -d '{}' 127.0.0.1:9090 pl.umamusume.tiket.api.v1.SystemService/Ping
+```
+
+Expected response: `{"status":"OK","apiVersion":"v1"}`.
+
+## Scope
+
+Only diagnostic Ping, database connectivity and migration infrastructure are implemented.
+Business RPCs, repositories, business tables, printing modules, authentication, production TLS,
+REST, gRPC-Web and frontend are absent. Keep development plaintext on localhost; production
+TLS and authorization must be designed before external exposure. Phase 2 should first agree
+transaction boundaries, concurrency/idempotency rules, schema and application use cases.
+See [backend architecture](docs/backend-architecture.md).
+
+# Core library
 
 A standalone deterministic Kotlin/JVM domain library for a preplanned parimutuel horse-betting race day.
 Targets Kotlin 2.4.x and Java 25. Runtime dependencies are limited to Kotlin and the JDK.
@@ -7,7 +107,7 @@ Implements Win, Quinella, Exacta and Trifecta; structured normal, wall and box s
 immutable priced coupons; purchase plans; pool settlement; leg refunds; lifecycle policies;
 single-balance accounts and promotional withdrawal eligibility.
 
-No backend framework, persistence, network, clock, printing, frontend or simulator is included.
+The core remains independent of backend frameworks, persistence, transport and printing.
 
 ## Build
 
