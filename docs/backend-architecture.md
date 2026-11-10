@@ -22,8 +22,8 @@ persist resulting state through Spring JDBC. Protobuf objects must never become 
 models. Package names will be `grpc`, `application`, `persistence` and `config` when
 classes are needed; no future implementations are scaffolded now.
 
-Flyway owns schema evolution. V1 establishes migration history only. Business schema,
-repositories, idempotency and concurrency policies require Phase 2 design.
+Flyway owns schema evolution. V1 establishes migration history only. Phase 2 adds the business schema,
+JDBC repositories, idempotency and concurrency primitives; see [persistence](backend-persistence.md).
 Printing will eventually use a separate printer contract and adapter; neither exists yet.
 
 The default process uses no web application context and binds plaintext gRPC to

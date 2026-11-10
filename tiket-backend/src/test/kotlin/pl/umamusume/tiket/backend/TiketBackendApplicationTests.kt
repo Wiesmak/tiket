@@ -12,7 +12,7 @@ import pl.umamusume.tiket.core.money.Money
 import java.util.concurrent.TimeUnit
 
 // Transport tests are independent of database availability; PostgreSQL is tested separately.
-@SpringBootTest(properties = [
+@SpringBootTest(classes = [TransportTestConfiguration::class], properties = [
     "spring.autoconfigure.exclude=org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration"
 ])
 @AutoConfigureTestGrpcTransport

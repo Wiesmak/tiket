@@ -11,7 +11,7 @@ import pl.umamusume.tiket.contracts.v1.PingRequest
 import pl.umamusume.tiket.contracts.v1.SystemServiceGrpc
 import java.util.concurrent.TimeUnit
 
-@SpringBootTest(properties = [
+@SpringBootTest(classes = [TransportTestConfiguration::class], properties = [
     "spring.grpc.server.port=0",
     "spring.autoconfigure.exclude=org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration"
 ])

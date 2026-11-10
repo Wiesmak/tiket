@@ -47,8 +47,8 @@ class PostgresFoundationTests {
                 }
                 val flyway = context.getBean(Flyway::class.java)
                 flyway.validate()
-                assertThat(flyway.info().applied()).hasSize(1)
-                assertThat(flyway.info().current().version.version).isEqualTo("1")
+                assertThat(flyway.info().applied()).hasSize(2)
+                assertThat(flyway.info().current().version.version).isEqualTo("2")
                 assertThat(flyway.migrate().migrationsExecuted).isZero()
                 assertThat(context.environment.getProperty("local.server.port")).isNull()
                 assertThat(context.javaClass.name).doesNotContain("WebServer")

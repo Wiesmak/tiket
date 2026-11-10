@@ -24,10 +24,10 @@ the Boot plugin. Only backend applies Boot and produces a bootJar.
 Generated sources stay under `tiket-contracts/build` and are ignored by Git.
 
 ```shell
-./gradlew clean build
+./gradlew clean build --no-configuration-cache
 ./gradlew :tiket-contracts:build
-./gradlew :tiket-backend:test
-./gradlew :tiket-backend:bootJar
+./gradlew :tiket-backend:test --no-configuration-cache
+./gradlew :tiket-backend:bootJar --no-configuration-cache
 ```
 
 On Windows use `gradlew.bat`. On machines with limited Windows commit memory or
@@ -37,8 +37,8 @@ Protobuf 0.9.6 generation tasks are explicitly marked incompatible with Gradle's
 cache; Gradle may discard that cache for builds involving those tasks. The build cache remains usable.
 
 Docker must be running for PostgreSQL Testcontainers tests.
-Without Docker those tests are reported as skipped; in-process and real Netty transport
-tests still execute. Integration tests use isolated PostgreSQL 18 containers, start the
+The Phase 2 persistence suite requires Docker and fails explicitly if it is unavailable;
+database-independent in-process and real Netty transport tests still execute. Integration tests use isolated PostgreSQL 18 containers, start the
 application twice against the same database, validate Flyway history, call Ping over
 loopback, and check shutdown of the listener and connection pool.
 
@@ -91,11 +91,15 @@ Expected response: `{"status":"OK","apiVersion":"v1"}`.
 
 ## Scope
 
-Only diagnostic Ping, database connectivity and migration infrastructure are implemented.
-Business RPCs, repositories, business tables, printing modules, authentication, production TLS,
-REST, gRPC-Web and frontend are absent. Keep development plaintext on localhost; production
-TLS and authorization must be designed before external exposure. Phase 2 should first agree
-transaction boundaries, concurrency/idempotency rules, schema and application use cases.
+Phase 2 provides the V2 PostgreSQL schema, concrete JDBC repositories, validated domain
+reconstruction, version checks, transaction and locking helpers, and durable idempotency.
+The ledger is authoritative; account snapshots replay and reconcile history, while projection
+totals support efficient display reads. No core APIs were changed.
+Business application services and RPCs, printing, authentication, REST, gRPC-Web and frontend
+remain absent. See [persistence design](docs/backend-persistence.md) for boundaries and usage.
+Docker is required for PersistenceTests: it deliberately fails rather than silently skipping
+the Phase 2 integration suite. Tests cover V1 upgrades, round trips, reconciliation, rollback,
+corruption detection and independent-connection concurrency.
 See [backend architecture](docs/backend-architecture.md).
 
 # Core library
