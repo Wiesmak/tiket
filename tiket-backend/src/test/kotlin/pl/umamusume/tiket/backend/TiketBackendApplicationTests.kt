@@ -1,0 +1,13 @@
+package pl.umamusume.tiket.backend
+
+import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.SpringBootTest
+
+@SpringBootTest
+class TiketBackendApplicationTests {
+
+    @Test
+    fun contextLoads() {
+    }
+
+}

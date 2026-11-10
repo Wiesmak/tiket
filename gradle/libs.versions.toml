@@ -8,9 +8,32 @@ kotlinxDatetime = "0.8.0"
 kotlinxSerializationJSON = "1.12.0"
 kotlinxCoroutines = "1.11.0"
 kotest = "6.2.2"
+springBoot = "4.1.2"
+springDependencyManagement = "1.1.7"
+protobufPlugin = "0.9.6"
+junit = "6.0.0"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+kotlinAllOpenGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-allopen", version.ref = "kotlin" }
+springBootGradlePlugin = { module = "org.springframework.boot:spring-boot-gradle-plugin", version.ref = "springBoot" }
+springDependencyManagementGradlePlugin = { module = "io.spring.gradle:dependency-management-plugin", version.ref = "springDependencyManagement" }
+protobufGradlePlugin = { module = "com.google.protobuf:protobuf-gradle-plugin", version.ref = "protobufPlugin" }
+junitBom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junitJupiterApi = { module = "org.junit.jupiter:junit-jupiter-api" }
+junitJupiterParams = { module = "org.junit.jupiter:junit-jupiter-params" }
+junitJupiterEngine = { module = "org.junit.jupiter:junit-jupiter-engine" }
+junitPlatformLauncher = { module = "org.junit.platform:junit-platform-launcher" }
+springBootStarterFlyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
+springBootStarterGrpcServer = { module = "org.springframework.boot:spring-boot-starter-grpc-server" }
+springBootStarterJdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
+flywayPostgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+kotlinReflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+postgresql = { module = "org.postgresql:postgresql" }
+springBootStarterFlywayTest = { module = "org.springframework.boot:spring-boot-starter-flyway-test" }
+springBootStarterGrpcServerTest = { module = "org.springframework.boot:spring-boot-starter-grpc-server-test" }
+springBootStarterJdbcTest = { module = "org.springframework.boot:spring-boot-starter-jdbc-test" }
+kotlinTestJunit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }
 kotlinxDatetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 kotlinxSerialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJSON" }
 kotlinxCoroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
@@ -19,6 +42,10 @@ kotest = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 # Libraries can be bundled together for easier import
 [bundles]
 kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutines"]
+backend = ["springBootStarterFlyway", "springBootStarterGrpcServer", "springBootStarterJdbc", "flywayPostgresql", "kotlinReflect"]
+backendTest = ["springBootStarterFlywayTest", "springBootStarterGrpcServerTest", "springBootStarterJdbcTest", "kotlinTestJunit5"]
+junit = ["junitJupiterApi", "junitJupiterParams"]
+junitRuntime = ["junitJupiterEngine", "junitPlatformLauncher"]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

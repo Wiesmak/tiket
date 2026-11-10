@@ -18,3 +18,5 @@ plugins {
 
 rootProject.name = "tiket"
 include("tiket-core")
+include("tiket-contracts")
+include("tiket-backend")
