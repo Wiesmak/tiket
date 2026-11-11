@@ -2,6 +2,10 @@ name: CI
 on:
   pull_request:
   workflow_call:
+    inputs:
+      vulnerability-policy:
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -18,6 +22,23 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22.18.0'
+      - name: Select trusted vulnerability policy
+        env:
+          REQUESTED_POLICY: ${{ inputs.vulnerability-policy }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            echo "VULNERABILITY_POLICY=development" >> "$GITHUB_ENV"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            [[ "$REQUESTED_POLICY" == release ]]
+            echo "VULNERABILITY_POLICY=release" >> "$GITHUB_ENV"
+          else
+            [[ "$GITHUB_REF" == refs/heads/master && "$REQUESTED_POLICY" == development ]]
+            echo "VULNERABILITY_POLICY=development" >> "$GITHUB_ENV"
+          fi
+      - name: Vulnerability policy unit tests
+        run: node --test scripts/security/*.test.mjs
+      - name: Validate workflow syntax
+        run: docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.7
       - name: Runner resource baseline
         run: |
           chmod +x gradlew
@@ -48,11 +69,17 @@ jobs:
         if: always() && steps.kind.outputs.cluster != ''
         run: kind delete cluster --name "${{ steps.kind.outputs.cluster }}"
       - name: Image vulnerability gate
+        run: node scripts/security/scan-image.mjs "$VULNERABILITY_POLICY" tiket:kind build/supply-chain
+      - name: Package inspectable unsigned CI artifacts
         run: |
-          mkdir -p build/supply-chain
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/build/supply-chain:/out" aquasec/trivy:0.67.2 image --scanners vuln --severity HIGH,CRITICAL --format json --output /out/vulnerabilities.json --exit-code 1 tiket:kind
-      - name: Validate workflow syntax
-        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7
+          mkdir -p build/unsigned-ci
+          cp tiket-{backend,core,contracts,print-api,print-console}/build/libs/*.jar build/unsigned-ci/
+          helm package charts/tiket --destination build/unsigned-ci
+          echo "UNSIGNED CI TEST ARTIFACTS — NOT A SIGNED GHCR SNAPSHOT — NOT PRODUCTION APPROVED" > build/unsigned-ci/NOTICE.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: unsigned-ci-test-artifacts
+          path: build/unsigned-ci/
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

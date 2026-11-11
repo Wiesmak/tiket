@@ -496,3 +496,74 @@ Evidence on this workstation: `build/phase8-hosted.log`,
 `build/phase8-app-vulnerabilities.json`. Downloaded evidence contains the runner
 measurements, test HTML, kind logs and hosted Trivy JSON. Do not publish raw
 workstation daemon logs or crash reports.
+
+## Development snapshot vulnerability policy (2026-11-11)
+
+This section supersedes historical all-HIGH blocking statements above for PRs and
+development snapshots only. A green PR means functional validation and the development
+security policy passed. It does not mean a snapshot was published or signed.
+A development snapshot may carry explicitly accepted unresolved HIGH risk.
+A signed development snapshot additionally requires actual GHCR publication, Cosign
+signing and verification of both image and chart digests. Neither constitutes
+production approval. An official release always blocks every HIGH and CRITICAL;
+the separate Phase 7 production-readiness gaps remain unresolved.
+
+Both CI and publication call `scripts/security/scan-image.mjs`, using pinned Trivy
+0.67.2 to scan a fresh Docker image archive without exposing the Docker socket.
+The scan is unfiltered (all severities, OS and Java targets), uses exit-code 0 for
+findings, and must complete successfully before `vulnerability-gate.mjs` evaluates it.
+Scanner errors, malformed evidence, CRITICAL, fixable HIGH and unverified HIGH block.
+Red Hat OS HIGH with no fixed version and authoritative `will_not_fix` or
+`fix_deferred` status may pass development with a warning. Missing fixes or
+`affected` status alone never imply approval.
+
+The owner-authorized `scripts/security/development-exceptions.json` inventory
+narrowly accepts 26 currently affected records until **2026-11-25 UTC**.
+It matches exact CVE, package, installed version, vendor source/status and package
+layer, bound to the pinned base's two immutable rootfs layers. The inventory records
+the corresponding base manifest digest and vendor advisory URLs.
+The remaining two HIGH records have Red Hat `will_not_fix` evidence.
+Every fixed-version result overrides the inventory, every CRITICAL blocks, and
+new/unmatched affected HIGH fails. Changed versions, layers or expired review also
+invalidate acceptance. Review at least every 14 days, refresh vendor package
+availability, and adopt supported vendor fixes as soon as available; never extend
+the date without reviewing fresh evidence. These findings can still be exploitable.
+
+Fresh local and downloaded hosted evidence both report **28 HIGH, 0 CRITICAL,
+0 fixable HIGH**. Local development evaluation warns and passes; strict release
+evaluation of the same full report fails. On 2026-11-11 Red Hat latest still resolved
+to the pinned `sha256:2ddacad5332f4e481353668f210623f7e7420f1561515f5686e5abd33cd6d38f`.
+A disposable `microdnf --refresh upgrade --assumeno` vendor-repository query offered
+only glibc and timezone updates, not updates for the affected packages. No newer
+patched supported latest base or vendor fix for these HIGH findings was available.
+This is dated evidence, not a promise about future remediation.
+
+Validation evidence contains the original `vulnerabilities.json`, scanner version,
+scan time, image ID/digests/layers, all severity counts, and a classification inventory
+with status/fixed versions, policy, expiry and final decision. Actions summaries show
+CRITICAL, fixable/unfixed/unverified HIGH and exceptions. The full scan is never
+filtered or replaced by the summary. Published provenance embeds that summary beside
+the published image/chart digests, and checksums cover the JSON evidence.
+Snapshot image description, Helm annotation and NOTICE prominently state:
+**DEVELOPMENT SNAPSHOT — NOT PRODUCTION APPROVED**.
+
+Reusable CI requires an explicit policy from trusted callers: snapshot passes
+development; release passes release after exact SemVer validation. Tag-context CI
+rejects development even if accidentally requested. PR CI forces development and has
+read-only permissions. Publication accepts only matching push event, ref, channel
+and top-level snapshot/release workflow identity, with the existing protected
+environment and `needs: validate`. Missing signing key/password fails before publication.
+Signatures and their verification are mandatory.
+
+Downloadable `unsigned-ci-test-artifacts` contains JVM JARs and a Helm package for
+inspection after successful validation. These are explicitly unsigned test artifacts;
+they are not signed GHCR snapshots. Workflow syntax validation now precedes scanning.
+Run policy tests with `node --test scripts/security/*.test.mjs`.
+Run a complete scan with
+`node scripts/security/scan-image.mjs development tiket:kind build/security`, then
+check the strict policy using
+`node scripts/security/vulnerability-gate.mjs release build/security/vulnerabilities.json build/security/release-summary.json`.
+The latter is expected to fail while HIGH findings remain.
+
+PR #1 must be merged by the owner before the updated master Snapshot path can run.
+No signed GHCR publication or remote signature verification is claimed by this change.

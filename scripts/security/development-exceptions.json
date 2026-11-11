@@ -1,0 +1,246 @@
+{
+  "reviewedAt": "2026-11-11",
+  "expiresAt": "2026-11-25T00:00:00Z",
+  "baseImage": "registry.access.redhat.com/ubi9/openjdk-25-runtime:1.24@sha256:2ddacad5332f4e481353668f210623f7e7420f1561515f5686e5abd33cd6d38f",
+  "baseLayers": [
+    "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+    "sha256:816be3cc630c16359dfa8c0c53806b0109889f8dffebfa22098efaa532cdd2ca"
+  ],
+  "basis": "Owner-authorized development-only risk acceptance. Hosted run 43023603194 and 2026-11-11 vendor microdnf --refresh upgrade --assumeno: no updates for these packages. Status affected is NOT independently no-fix evidence. Exact inventory expires in 14 days; adopt supported vendor fixes immediately. Not an exploitability assessment.",
+  "findings": [
+    {
+      "id": "CVE-2026-115506",
+      "package": "expat",
+      "version": "2.5.0-6.el9_8.7",
+      "status": "affected",
+      "layer": "sha256:816be3cc630c16359dfa8c0c53806b0109889f8dffebfa22098efaa532cdd2ca",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-115506"
+    },
+    {
+      "id": "CVE-2026-76641",
+      "package": "expat",
+      "version": "2.5.0-6.el9_8.7",
+      "status": "affected",
+      "layer": "sha256:816be3cc630c16359dfa8c0c53806b0109889f8dffebfa22098efaa532cdd2ca",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-76641"
+    },
+    {
+      "id": "CVE-2026-120194",
+      "package": "json-glib",
+      "version": "1.6.6-1.el9",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-120194"
+    },
+    {
+      "id": "CVE-2026-112315",
+      "package": "krb5-libs",
+      "version": "1.21.1-10.el9_8.1",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-112315"
+    },
+    {
+      "id": "CVE-2026-112316",
+      "package": "krb5-libs",
+      "version": "1.21.1-10.el9_8.1",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-112316"
+    },
+    {
+      "id": "CVE-2026-112317",
+      "package": "krb5-libs",
+      "version": "1.21.1-10.el9_8.1",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-112317"
+    },
+    {
+      "id": "CVE-2026-112318",
+      "package": "krb5-libs",
+      "version": "1.21.1-10.el9_8.1",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-112318"
+    },
+    {
+      "id": "CVE-2026-112319",
+      "package": "krb5-libs",
+      "version": "1.21.1-10.el9_8.1",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-112319"
+    },
+    {
+      "id": "CVE-2026-112320",
+      "package": "krb5-libs",
+      "version": "1.21.1-10.el9_8.1",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-112320"
+    },
+    {
+      "id": "CVE-2026-112321",
+      "package": "krb5-libs",
+      "version": "1.21.1-10.el9_8.1",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-112321"
+    },
+    {
+      "id": "CVE-2026-112322",
+      "package": "krb5-libs",
+      "version": "1.21.1-10.el9_8.1",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-112322"
+    },
+    {
+      "id": "CVE-2026-112323",
+      "package": "krb5-libs",
+      "version": "1.21.1-10.el9_8.1",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-112323"
+    },
+    {
+      "id": "CVE-2026-119079",
+      "package": "krb5-libs",
+      "version": "1.21.1-10.el9_8.1",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-119079"
+    },
+    {
+      "id": "CVE-2026-53613",
+      "package": "libblkid",
+      "version": "2.37.4-25.el9",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-53613"
+    },
+    {
+      "id": "CVE-2026-53615",
+      "package": "libblkid",
+      "version": "2.37.4-25.el9",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-53615"
+    },
+    {
+      "id": "CVE-2026-53613",
+      "package": "libmount",
+      "version": "2.37.4-25.el9",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-53613"
+    },
+    {
+      "id": "CVE-2026-53615",
+      "package": "libmount",
+      "version": "2.37.4-25.el9",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-53615"
+    },
+    {
+      "id": "CVE-2026-53613",
+      "package": "libsmartcols",
+      "version": "2.37.4-25.el9",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-53613"
+    },
+    {
+      "id": "CVE-2026-53615",
+      "package": "libsmartcols",
+      "version": "2.37.4-25.el9",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-53615"
+    },
+    {
+      "id": "CVE-2026-53613",
+      "package": "libuuid",
+      "version": "2.37.4-25.el9",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-53613"
+    },
+    {
+      "id": "CVE-2026-53615",
+      "package": "libuuid",
+      "version": "2.37.4-25.el9",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-53615"
+    },
+    {
+      "id": "CVE-2026-57585",
+      "package": "python3-pip-wheel",
+      "version": "21.3.1-2.el9_8",
+      "status": "affected",
+      "layer": "sha256:816be3cc630c16359dfa8c0c53806b0109889f8dffebfa22098efaa532cdd2ca",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-57585"
+    },
+    {
+      "id": "CVE-2026-119373",
+      "package": "sqlite-libs",
+      "version": "3.34.1-11.el9_8",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-119373"
+    },
+    {
+      "id": "CVE-2026-119374",
+      "package": "sqlite-libs",
+      "version": "3.34.1-11.el9_8",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-119374"
+    },
+    {
+      "id": "CVE-2026-119379",
+      "package": "sqlite-libs",
+      "version": "3.34.1-11.el9_8",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-119379"
+    },
+    {
+      "id": "CVE-2026-119586",
+      "package": "sqlite-libs",
+      "version": "3.34.1-11.el9_8",
+      "status": "affected",
+      "layer": "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
+      "source": "redhat",
+      "reference": "https://access.redhat.com/security/cve/CVE-2026-119586"
+    }
+  ]
+}

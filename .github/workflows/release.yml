@@ -18,6 +18,8 @@ jobs:
   validate:
     needs: version
     uses: ./.github/workflows/ci.yml
+    with:
+      vulnerability-policy: release
   publish:
     needs: validate
     uses: ./.github/workflows/publish.yml

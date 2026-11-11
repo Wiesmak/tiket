@@ -201,3 +201,10 @@ and operational monitoring; external disbursement integration remains outside th
 ## Phase 7 security and operations increment
 
 See [security and operations](docs/phase7-security-operations.md) for the RPC matrix, mandatory JWT claims, event/player/POS authorization, native TLS/h2c, separate management HTTP listener, append-only V5 audit/command-actor schema, resource limits, recovery runbooks and exact Phase 8 deployment contract. Earlier phase statements about absent authentication or HTTP describe historical behavior. Application HTTP is disabled; only operational Actuator HTTP is enabled. Phase 7 residual gaps are explicitly listed and deployment readiness is not claimed.
+
+Development builds: PR evidence includes unsigned JVM/Helm test artifacts. Trusted master
+snapshots require GHCR publication plus verified image/chart signatures. Development-only
+exceptions for verified unfixed HIGH findings do not approve production use; CRITICAL,
+fixable HIGH and unreliable scan evidence always block. Tagged releases block all HIGH
+and CRITICAL. See [Phase 8 vulnerability policy](docs/phase8-deployment-ci.md#development-snapshot-vulnerability-policy-2026-11-11)
+for the expiring exception inventory, full scan evidence and signing requirements.

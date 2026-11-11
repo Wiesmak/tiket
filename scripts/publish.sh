@@ -2,6 +2,15 @@
 # Only called by trusted publishing workflows after validation.
 set -euo pipefail
 : "${VERSION:?}" "${GH_TOKEN:?}" "${TIKET_COSIGN_PRIVATE_KEY:?}" "${TIKET_COSIGN_PASSWORD:?}"
+case "${CHANNEL:?Missing publication channel}" in
+ snapshot)
+  [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/master && "$GITHUB_WORKFLOW_REF" == Wiesmak/tiket/.github/workflows/snapshot.yml@refs/heads/master ]]
+  policy=development ;;
+ release)
+  [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" =~ ^refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ && "$GITHUB_WORKFLOW_REF" == Wiesmak/tiket/.github/workflows/release.yml@refs/tags/v* ]]
+  policy=release ;;
+ *) echo "Invalid publication channel" >&2; exit 1 ;;
+esac
 export COSIGN_PASSWORD="$TIKET_COSIGN_PASSWORD"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
@@ -23,14 +32,25 @@ done
 timeout --signal=TERM --kill-after=30s 25m bash scripts/ci-gradle.sh build :tiket-backend:bootJar "-PreleaseVersion=$VERSION"
 bash scripts/ci-gradle.sh --stop
 cp tiket-{backend,core,contracts,print-api,print-console}/build/libs/*.jar dist/
-docker build --build-arg VERSION="$VERSION" --build-arg REVISION="$GITHUB_SHA" --build-arg CREATED="$(date -u +%FT%TZ)" -t "$image:$VERSION" .
+buildLabels=()
+if [[ "$CHANNEL" == snapshot ]]; then
+ buildLabels+=(--label "org.opencontainers.image.description=DEVELOPMENT SNAPSHOT — NOT PRODUCTION APPROVED")
+fi
+docker build "${buildLabels[@]}" --build-arg VERSION="$VERSION" --build-arg REVISION="$GITHUB_SHA" --build-arg CREATED="$(date -u +%FT%TZ)" -t "$image:$VERSION" .
 bash scripts/container-smoke.sh "$image:$VERSION"
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/dist:/out" aquasec/trivy:0.67.2 image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 "$image:$VERSION"
+node scripts/security/scan-image.mjs "$policy" "$image:$VERSION" dist
+if [[ "$CHANNEL" == snapshot ]]; then
+ printf '%s\n' 'DEVELOPMENT SNAPSHOT — NOT PRODUCTION APPROVED' > dist/NOTICE.txt
+fi
 node scripts/generate-sbom.mjs "$image:$VERSION" dist
 docker run --rm -v "$PWD/dist:/scan" aquasec/trivy:0.67.2 fs --scanners license --format json --output /scan/licenses.json /scan
 docker push "$image:$VERSION"
 imageDigest=$(docker buildx imagetools inspect "$image:$VERSION" --format '{{json .Manifest.Digest}}' | jq -er .)
-helm package charts/tiket --version "$VERSION" --app-version "$VERSION" --destination dist
+cp -R charts/tiket "$tmp/chart"
+if [[ "$CHANNEL" == snapshot ]]; then
+ printf '\nannotations:\n  tiket.dev/approval: "DEVELOPMENT SNAPSHOT — NOT PRODUCTION APPROVED"\n' >> "$tmp/chart/Chart.yaml"
+fi
+helm package "$tmp/chart" --version "$VERSION" --app-version "$VERSION" --destination dist
 helm push "dist/tiket-$VERSION.tgz" oci://ghcr.io/wiesmak/charts
 chartDigest=$(docker buildx imagetools inspect "$chart:$VERSION" --format '{{json .Manifest.Digest}}' | jq -er .)
 certArgs=()
@@ -52,7 +72,7 @@ for artifact in "$image@$imageDigest" "$chart@$chartDigest"; do
  cosign verify --key "$tmp/cosign.pub" "$artifact" | jq -c . >> "$tmp/verification.jsonl"
 done
 jq -s . "$tmp/verification.jsonl" > dist/oci-verification.json
-jq -n --arg version "$VERSION" --arg sha "$GITHUB_SHA" --arg image "$image@$imageDigest" --arg chart "$chart@$chartDigest" '{version:$version,revision:$sha,image:$image,chart:$chart,verified:true}' > dist/provenance.json
+jq -n --arg version "$VERSION" --arg sha "$GITHUB_SHA" --arg image "$image@$imageDigest" --arg chart "$chart@$chartDigest" --slurpfile security dist/vulnerability-summary.json '{version:$version,revision:$sha,image:$image,chart:$chart,verified:true,security:$security[0]}' > dist/provenance.json
 (cd dist && sha256sum *.jar *.tgz *.json > SHA256SUMS)
 cosign sign-blob --yes --key "$tmp/cosign.key" --bundle dist/SHA256SUMS.sigstore.json dist/SHA256SUMS
 cosign verify-blob --key "$tmp/cosign.pub" --bundle dist/SHA256SUMS.sigstore.json dist/SHA256SUMS
