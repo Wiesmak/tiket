@@ -1,0 +1,52 @@
+{{- if .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "tiket.name" . }}-migrate-{{ .Values.migration.revision | toString | sha256sum | trunc 10 }}
+  labels:
+    {{- include "tiket.labels" . | nindent 4 }}
+  {{- if eq .Values.migration.mode "hook" }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  {{- end }}
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels: {tiket.io/component: migration}
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: {{ include "tiket.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["--tiket.migrate-only"]
+          securityContext:
+            {{- include "tiket.security" . | nindent 12 }}
+          env:
+            {{- include "tiket.dbEnv" (dict "Values" .Values "secret" .Values.database.migrationSecret) | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            {{- if .Values.database.tlsSecret }}
+            - {name: db-tls, mountPath: /run/db, readOnly: true}
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: 256Mi}
+        {{- if .Values.database.tlsSecret }}
+        - name: db-tls
+          secret: {secretName: {{ .Values.database.tlsSecret }}}
+        {{- end }}
+{{- end }}

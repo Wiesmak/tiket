@@ -1,0 +1,32 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "tiket.name" . }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "tiket.labels" . | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    {{- if .Values.networkPolicy.grpcPeers }}
+    - from: {{ toYaml .Values.networkPolicy.grpcPeers | nindent 8 }}
+      ports: [{protocol: TCP, port: {{ .Values.grpcPort }}}]
+    {{- end }}
+    {{- if .Values.networkPolicy.monitoringPeers }}
+    - from: {{ toYaml .Values.networkPolicy.monitoringPeers | nindent 8 }}
+      ports: [{protocol: TCP, port: {{ .Values.managementPort }}}]
+    {{- end }}
+  egress:
+    {{- if and .Values.networkPolicy.dnsPeers .Values.networkPolicy.dnsPorts }}
+    - to: {{ toYaml .Values.networkPolicy.dnsPeers | nindent 8 }}
+      ports: {{ toYaml .Values.networkPolicy.dnsPorts | nindent 8 }}
+    {{- end }}
+    {{- if .Values.networkPolicy.databasePeers }}
+    - to: {{ toYaml .Values.networkPolicy.databasePeers | nindent 8 }}
+      ports: [{protocol: TCP, port: {{ .Values.database.port }}}]
+    {{- end }}
+    {{- with .Values.networkPolicy.externalEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

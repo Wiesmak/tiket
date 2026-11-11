@@ -1,0 +1,8 @@
+apiVersion: v2
+name: tiket
+description: Portable native gRPC Tiket backend with external PostgreSQL and OIDC
+type: application
+version: 0.0.1
+appVersion: "0.0.1-SNAPSHOT"
+home: https://github.com/Wiesmak/tiket
+sources: [https://github.com/Wiesmak/tiket]

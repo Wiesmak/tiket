@@ -1,0 +1,42 @@
+{{- if eq .Values.exposure.mode "gateway" }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: {{ include "tiket.name" . }}
+spec:
+  parentRefs:
+    {{- required "gateway.parentRefs required" .Values.exposure.gateway.parentRefs | toYaml | nindent 4 }}
+  {{- with .Values.exposure.gateway.hostnames }}
+  hostnames: {{ toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - backendRefs:
+        - name: {{ include "tiket.name" . }}
+          port: {{ .Values.grpcPort }}
+{{- else if eq .Values.exposure.mode "ingress" }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "tiket.name" . }}
+  annotations:
+    {{- toYaml .Values.exposure.ingress.annotations | nindent 4 }}
+spec:
+  {{- with .Values.exposure.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.exposure.ingress.tlsSecret }}
+  tls:
+    - secretName: {{ . }}
+      hosts: [{{ $.Values.exposure.ingress.hostname | quote }}]
+  {{- end }}
+  rules:
+    - host: {{ required "ingress.hostname required" .Values.exposure.ingress.hostname | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "tiket.name" . }}
+                port: {number: {{ .Values.grpcPort }}}
+{{- end }}

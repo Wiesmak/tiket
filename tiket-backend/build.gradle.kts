@@ -3,8 +3,12 @@ plugins {
 }
 
 group = "pl.umamusume"
-version = "0.0.1-SNAPSHOT"
+version = rootProject.version
 description = "tiket-backend"
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    archiveClassifier.set("boot")
+}
 
 val mockitoAgent = configurations.create("mockitoAgent") {
     isCanBeConsumed = false
@@ -12,6 +16,7 @@ val mockitoAgent = configurations.create("mockitoAgent") {
 }
 
 dependencies {
+    implementation(libs.guava) // CVE-2026-102554: override vulnerable transitive 33.6.0.
     implementation(project(":tiket-print-api"))
     implementation(project(":tiket-print-console"))
     implementation(project(":tiket-core"))

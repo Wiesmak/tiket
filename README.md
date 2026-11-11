@@ -1,5 +1,11 @@
 # Tiket
 
+Phase 8 deployment entry points: build the backend bootJar, then `docker build -t tiket:kind .`.
+Use `bash scripts/test-kind.sh` (Windows: `powershell -File scripts/test-kind.ps1`) for disposable
+kind deployment tests. One portable chart lives in `charts/tiket`.
+See [deployment and CI operations](docs/phase8-deployment-ci.md) for configuration,
+signed OCI releases, actual validation evidence and unresolved release gates.
+
 A Gradle multi-project monorepo for a parimutuel horse-betting system.
 
 | Module | Responsibility | Project dependencies |

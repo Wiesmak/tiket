@@ -1,0 +1,5 @@
+**
+!tiket-backend/
+!tiket-backend/build/
+!tiket-backend/build/libs/
+!tiket-backend/build/libs/*-boot.jar

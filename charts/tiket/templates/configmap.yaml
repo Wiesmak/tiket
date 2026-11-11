@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tiket.name" . }}
+  labels:
+    {{- include "tiket.labels" . | nindent 4 }}
+data:
+  SPRING_PROFILES_ACTIVE: production
+  TIKET_TRANSPORT: {{ .Values.transport | quote }}
+  SPRING_FLYWAY_ENABLED: "false"
+  GRPC_ADDRESS: "0.0.0.0"
+  GRPC_PORT: {{ .Values.grpcPort | quote }}
+  MANAGEMENT_ADDRESS: "0.0.0.0"
+  MANAGEMENT_PORT: {{ .Values.managementPort | quote }}
+  DB_POOL_SIZE: {{ .Values.database.poolSize | quote }}
+  DB_CONNECTION_TIMEOUT: {{ .Values.database.connectionTimeout | quote }}
+  JWT_ISSUER: {{ .Values.jwt.issuer | quote }}
+  JWT_JWKS_URI: {{ .Values.jwt.jwksUri | quote }}
+  JWT_AUDIENCE: {{ .Values.jwt.audience | quote }}
+  GRPC_TLS_ENABLED: {{ eq .Values.transport "direct-tls" | quote }}
+  {{- if eq .Values.transport "direct-tls" }}
+  SPRING_GRPC_SERVER_SSL_BUNDLE: grpc
+  SPRING_SSL_BUNDLE_PEM_GRPC_KEYSTORE_CERTIFICATE: file:/run/grpc/tls.crt
+  SPRING_SSL_BUNDLE_PEM_GRPC_KEYSTORE_PRIVATE_KEY: file:/run/grpc/tls.key
+  SPRING_GRPC_SERVER_SSL_CLIENT_AUTH: {{ .Values.tls.clientAuth | quote }}
+  {{- if ne .Values.tls.clientAuth "none" }}
+  SPRING_SSL_BUNDLE_PEM_GRPC_TRUSTSTORE_CERTIFICATE: file:/run/grpc/ca.crt
+  {{- end }}
+  {{- end }}

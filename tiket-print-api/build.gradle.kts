@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "pl.umamusume"
-version = "unspecified"
+version = rootProject.version
 
 dependencies {
     testImplementation(platform(libs.junitBom))

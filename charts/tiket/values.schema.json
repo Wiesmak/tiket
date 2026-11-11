@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "exposure",
+    "transport",
+    "database"
+  ],
+  "properties": {
+    "transport": {
+      "enum": [
+        "gateway-h2c",
+        "direct-tls"
+      ]
+    },
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "terminationGracePeriodSeconds": {
+      "type": "integer",
+      "minimum": 61
+    },
+    "exposure": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "none",
+            "gateway",
+            "ingress"
+          ]
+        }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "hook",
+            "explicit"
+          ]
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "digest": {
+          "type": "string",
+          "pattern": "^$|^sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "tls": {
+      "type": "object",
+      "properties": {
+        "clientAuth": {
+          "enum": [
+            "none",
+            "optional",
+            "require"
+          ]
+        }
+      }
+    }
+  }
+}

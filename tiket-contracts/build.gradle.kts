@@ -7,9 +7,12 @@ plugins {
 }
 
 group = "pl.umamusume"
-version = "0.0.1-SNAPSHOT"
+version = rootProject.version
 
 dependencies {
+    constraints {
+        api(libs.guava) { because("CVE-2026-102554 in the transitive gRPC Guava dependency") }
+    }
     api(platform(libs.springBootBom))
     api(libs.bundles.grpc)
 }

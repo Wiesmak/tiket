@@ -1,0 +1,21 @@
+name: Snapshot
+on:
+  push:
+    branches: [master]
+permissions:
+  contents: read
+concurrency:
+  group: snapshot-publish
+  cancel-in-progress: false
+jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: validate
+    uses: ./.github/workflows/publish.yml
+    with:
+      channel: snapshot
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write

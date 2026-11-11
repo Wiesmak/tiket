@@ -1,0 +1,82 @@
+{{- if and (eq .Values.transport "direct-tls") (not .Values.tls.secret) }}{{ fail "direct-tls requires tls.secret" }}{{ end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tiket.name" . }}
+  labels:
+    {{- include "tiket.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.hpa.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  selector:
+    matchLabels:
+      {{- include "tiket.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "tiket.labels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: {{ include "tiket.sa" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: tiket
+          image: {{ include "tiket.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- include "tiket.security" . | nindent 12 }}
+          ports:
+            - {name: grpc, containerPort: {{ .Values.grpcPort }}}
+            - {name: management, containerPort: {{ .Values.managementPort }}}
+          envFrom:
+            - configMapRef:
+                name: {{ include "tiket.name" . }}
+          env:
+            {{- include "tiket.dbEnv" (dict "Values" .Values "secret" .Values.database.runtimeSecret) | nindent 12 }}
+            {{- with .Values.extraEnv }}{{ toYaml . | nindent 12 }}{{ end }}
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: management}
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: management}
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: management}
+            periodSeconds: 5
+            failureThreshold: 2
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            {{- if .Values.database.tlsSecret }}
+            - {name: db-tls, mountPath: /run/db, readOnly: true}
+            {{- end }}
+            {{- if .Values.tls.secret }}
+            - {name: grpc-tls, mountPath: /run/grpc, readOnly: true}
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}{{ toYaml . | nindent 12 }}{{ end }}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: 256Mi}
+        {{- if .Values.database.tlsSecret }}
+        - name: db-tls
+          secret: {secretName: {{ .Values.database.tlsSecret }}}
+        {{- end }}
+        {{- if .Values.tls.secret }}
+        - name: grpc-tls
+          secret: {secretName: {{ .Values.tls.secret }}}
+        {{- end }}
+        {{- with .Values.extraVolumes }}{{ toYaml . | nindent 8 }}{{ end }}

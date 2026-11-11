@@ -1,0 +1,54 @@
+name: Trusted OCI publication
+on:
+  workflow_call:
+    inputs:
+      channel:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: github.repository == 'Wiesmak/tiket' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+    environment: ${{ inputs.channel }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.8'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.18.0'
+      - run: bash scripts/install-ci-tools.sh
+      - run: go install github.com/sigstore/cosign/v3/cmd/cosign@v3.1.4
+      - name: Select version
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          if [[ "$CHANNEL" == release ]]; then
+            [[ "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=0.0.0-dev.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT.g${GITHUB_SHA:0:8}" >> "$GITHUB_ENV"
+          fi
+      - name: Publish, sign and verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TIKET_COSIGN_PRIVATE_KEY: ${{ secrets.TIKET_COSIGN_PRIVATE_KEY }}
+          TIKET_COSIGN_PASSWORD: ${{ secrets.TIKET_COSIGN_PASSWORD }}
+          TIKET_SIGNING_CERT: ${{ secrets.TIKET_SIGNING_CERT }}
+          TIKET_SIGNING_CERT_CHAIN: ${{ secrets.TIKET_SIGNING_CERT_CHAIN }}
+        run: chmod +x gradlew && bash scripts/publish.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-artifacts-${{ env.VERSION }}
+          path: dist/

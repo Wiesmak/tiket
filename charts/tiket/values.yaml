@@ -1,0 +1,79 @@
+replicaCount: 1
+image:
+  repository: ghcr.io/wiesmak/tiket
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+service:
+  annotations: {}
+transport: gateway-h2c
+grpcPort: 9090
+managementPort: 9091
+terminationGracePeriodSeconds: 90
+database:
+  port: 5432
+  url: jdbc:postgresql://postgres-rw:5432/tiket?sslmode=verify-full&sslrootcert=/run/db/ca.crt&connectTimeout=5&socketTimeout=30
+  runtimeSecret: tiket-db-runtime
+  migrationSecret: tiket-db-migration
+  tlsSecret: ""
+  poolSize: 10
+  connectionTimeout: 5000
+jwt:
+  issuer: ""
+  jwksUri: ""
+  audience: tiket
+tls:
+  secret: ""
+  clientAuth: none
+migration:
+  enabled: true
+  # hook gates Helm rollout; explicit renders an ordinary Job for ordered GitOps.
+  mode: hook
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  revision: "1"
+serviceAccount:
+  create: true
+  name: ""
+resources:
+  requests: {cpu: 250m, memory: 512Mi}
+  limits: {cpu: "2", memory: 1Gi}
+extraEnv: []
+extraVolumes: []
+extraVolumeMounts: []
+exposure:
+  mode: none
+  gateway:
+    parentRefs: []
+    hostnames: []
+  ingress:
+    className: ""
+    hostname: ""
+    annotations: {}
+    tlsSecret: ""
+pdb:
+  enabled: false
+  minAvailable: 1
+hpa:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 4
+  cpuUtilization: 70
+serviceMonitor:
+  enabled: false
+  labels: {}
+networkPolicy:
+  enabled: false
+  dnsPeers:
+    - namespaceSelector:
+        matchLabels: {kubernetes.io/metadata.name: kube-system}
+      podSelector:
+        matchLabels: {k8s-app: kube-dns}
+  dnsPorts: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+  # Each entry is a NetworkPolicyPeer. Supply both namespaceSelector and podSelector.
+  grpcPeers: []
+  monitoringPeers: []
+  databasePeers: []
+  # Explicit peers for HTTPS JWKS and optional OTLP. FQDN policies are not portable.
+  externalEgress: []

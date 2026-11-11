@@ -17,6 +17,7 @@ grpc = "1.84.1"
 junit = "6.0.0"
 
 [libraries]
+guava = { module = "com.google.guava:guava", version = "33.7.2-jre" }
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlinAllOpenGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-allopen", version.ref = "kotlin" }
 springBootGradlePlugin = { module = "org.springframework.boot:spring-boot-gradle-plugin", version.ref = "springBoot" }

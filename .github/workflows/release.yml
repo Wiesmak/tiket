@@ -1,0 +1,47 @@
+name: Release
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Validate exact release tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: '[[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]'
+  validate:
+    needs: version
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: validate
+    uses: ./.github/workflows/publish.yml
+    with:
+      channel: release
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+
+  github-release:
+    needs: publish
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: signed-artifacts-*
+          path: dist
+          merge-multiple: true
+      - name: Create release after verified publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag --title "Tiket ${TAG#v}" --notes "Verified artifacts. Consult docs/phase8-deployment-ci.md for verification and unresolved release gates."

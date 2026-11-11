@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tiket.name" . }}
+  annotations:
+    {{- toYaml .Values.service.annotations | nindent 4 }}
+  labels:
+    {{- include "tiket.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "tiket.labels" . | nindent 4 }}
+  ports:
+    - name: grpc
+      port: {{ .Values.grpcPort }}
+      targetPort: grpc
+      appProtocol: {{ ternary "kubernetes.io/h2c" "https" (eq .Values.transport "gateway-h2c") }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tiket.name" . }}-management
+  labels:
+    {{- include "tiket.labels" . | nindent 4 }}
+    tiket.io/service: management
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "tiket.labels" . | nindent 4 }}
+  ports:
+    - {name: management, port: {{ .Values.managementPort }}, targetPort: management}
