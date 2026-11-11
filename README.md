@@ -8,6 +8,8 @@ signed OCI releases, actual validation evidence and unresolved release gates.
 
 A Gradle multi-project monorepo for a parimutuel horse-betting system.
 
+See [serial printing](docs/serial-printing.md) for the optional 384-pixel raster adapter and POS routing.
+
 | Module | Responsibility | Project dependencies |
 | --- | --- | --- |
 | tiket-core | Deterministic Kotlin business logic, ordinary library JAR | None |

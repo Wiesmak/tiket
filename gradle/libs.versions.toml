@@ -60,7 +60,7 @@ kotlinxDatetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.r
 kotlinxSerialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJSON" }
 kotlinxCoroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotest = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
-escposCoffee = { module = "io.github.escpos-coffee:escpos-coffee", version.ref = "escpos-coffee" }
+escposCoffee = { module = "com.github.anastaciocintra:escpos-coffee", version.ref = "escpos-coffee" }
 jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "jSerialComm" }
 
 # Libraries can be bundled together for easier import
