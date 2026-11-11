@@ -25,16 +25,63 @@ class SerialPrintingTest {
         override fun close() { closed.incrementAndGet(); out.close() }
     }
 
-    @Test fun allFieldsAndReprint() {
-        val d = ticket()
+    @Test fun legacyFieldsAndOnlyMappedFields() {
+        val d = ticket().copy(ticketId = UUID.fromString("01234567-89ab-cdef-0123-456789abcdef"))
         val renderer = TicketRasterRenderer()
-        val content = renderer.content(d).joinToString("\n") { it.text }
-        for (value in listOf(d.ticketId.toString(), d.racecourseName, "007", "POS 1", d.cashierIdentifier,
-            "2026-11-11 12:30", "2026-11-11 13:45", "Race 3", "EXACTA", "Units/combination: 2",
-            "Unit price: 10 PLN", "#2,3,4", "Combinations: 6", "Total units: 12", "TOTAL: 120 PLN",
-            "ORIGINAL", d.printAttemptId.toString())) assertContains(content, value)
-        assertFalse(content.contains("REPRINT"))
-        assertTrue(renderer.content(d.copy(isReprint = true)).any { it.text == "REPRINT" })
+        val content = renderer.content(d).flatMap { listOfNotNull(it.text, it.rightText) }
+        assertEquals(listOf(
+            "0123 4567 89ab cdef",
+            "Tor: Racecourse", "Dzień 007",
+            "Stanowisko: POS (UMA001)", "Kasjer: cashier",
+            "Data zakładu: 2026-11-11 12:30", "Data wydruku: 2026-11-11 13:45",
+            "Wyścig: 3", "Zakład:", "2x10 PLN   DWJ #2,3,4", "R: 12",
+            "Wartość zakładu: 120 PLN",
+            "------------------------------------", "DOŁĄCZ DO NAS   UMAMUSUME POLSKA",
+            "DISCORD - umamusume.pl", "------------------------------------"
+        ), content)
+        val reprint = d.copy(isReprint = true, printAttemptId = UUID.randomUUID())
+        assertEquals(renderer.content(d), renderer.content(reprint))
+        val a = renderer.render(d)
+        val b = renderer.render(reprint)
+        assertContentEquals(a.getRGB(0,0,384,a.height,null,0,384), b.getRGB(0,0,384,b.height,null,0,384))
+    }
+
+    @Test fun allBetCodesAndThreeDigitPos() {
+        val renderer = TicketRasterRenderer()
+        for ((type, code) in mapOf("WIN" to "ZWC", "QUINELLA" to "PDK", "EXACTA" to "DWJ", "TRIFECTA" to "TRJ")) {
+            val content = renderer.content(ticket(69).copy(betType = type)).map { it.text }
+            assertContains(content, "2x10 PLN   $code #2,3,4")
+            assertContains(content, "Stanowisko: POS (UMA069)")
+        }
+        assertTrue(renderer.content(ticket(999)).any { it.text == "Stanowisko: POS (UMA999)" })
+    }
+
+    @Test fun legacyProportionsAndCenteredLogo() {
+        val d = ticket(69).copy(
+            ticketId = UUID.fromString("00000000-0000-0000-2137-213721372137"),
+            racecourseName = "Niigata", raceDayNumber = "001", cashierIdentifier = "John Umamusume",
+            betDateTime = LocalDateTime.of(2001, 9, 11, 19, 20),
+            printDateTime = LocalDateTime.of(2006, 12, 30, 21, 37),
+            raceNumber = 6, betType = "QUINELLA", betString = "6/7"
+        )
+        val renderer = TicketRasterRenderer()
+        val image = renderer.render(d)
+        // Legacy logo is 200 x 188, centered directly after the 30px ID block.
+        val top = 8 + 30
+        var ink = 0
+        for (y in top until top + 188) for (x in 0 until 384) {
+            val black = image.getRGB(x,y) and 0xffffff == 0
+            if (x < 92 || x >= 292) assertFalse(black)
+            if (black) ink++
+        }
+        assertTrue(ink > 3000, "Logo must be present")
+        assertTrue(image.height in 569..600, "Keep the compact legacy ticket proportions")
+        assertEquals(image.height, renderer.render(d, image.height).height)
+        assertFailsWith<IllegalArgumentException> { renderer.render(d, image.height - 1) }
+        // Local visual review artifact; no physical printer needed.
+        val preview = java.io.File("build/ticket-preview.png")
+        preview.parentFile.mkdirs()
+        javax.imageio.ImageIO.write(image, "png", preview)
     }
 
     @Test fun monochromeWhiteMarginsAndLongWrapping() {
