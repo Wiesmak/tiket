@@ -36,6 +36,12 @@ junitPlatformLauncher = { module = "org.junit.platform:junit-platform-launcher" 
 springBootStarterFlyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
 springBootStarterGrpcServer = { module = "org.springframework.boot:spring-boot-starter-grpc-server" }
 springBootStarterJdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
+springBootStarterSecurity = { module = "org.springframework.boot:spring-boot-starter-security" }
+springBootStarterOauth2ResourceServer = { module = "org.springframework.boot:spring-boot-starter-oauth2-resource-server" }
+springBootStarterActuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+springBootStarterWebmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+springBootStarterOpentelemetry = { module = "org.springframework.boot:spring-boot-starter-opentelemetry" }
+micrometerRegistryPrometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 flywayPostgresql = { module = "org.flywaydb:flyway-database-postgresql" }
 kotlinReflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 postgresql = { module = "org.postgresql:postgresql" }
@@ -54,7 +60,19 @@ kotest = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 # Libraries can be bundled together for easier import
 [bundles]
 kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutines"]
-backend = ["springBootStarterFlyway", "springBootStarterGrpcServer", "springBootStarterJdbc", "flywayPostgresql", "kotlinReflect"]
+backend = [
+    "springBootStarterFlyway",
+    "springBootStarterGrpcServer",
+    "springBootStarterJdbc",
+    "springBootStarterSecurity",
+    "springBootStarterOauth2ResourceServer",
+    "springBootStarterActuator",
+    "springBootStarterWebmvc",
+    "springBootStarterOpentelemetry",
+    "flywayPostgresql",
+    "kotlinReflect",
+]
+backendRuntime = ["postgresql", "micrometerRegistryPrometheus"]
 backendTest = ["springBootStarterFlywayTest", "springBootStarterGrpcServerTest", "springBootStarterJdbcTest", "kotlinTestJunit5", "springBootTestcontainers", "testcontainersPostgresql", "testcontainersJunit"]
 grpc = ["protobufJava", "grpcProtobuf", "grpcStub"]
 junit = ["junitJupiterApi", "junitJupiterParams"]
