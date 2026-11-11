@@ -414,8 +414,7 @@ release its memory. Do not raise worker count without hosted measurements.
 
 CI retains Ubuntu 24.04 and Temurin Java 25. Baselines record Java/Gradle versions,
 `free -h`, `nproc`, and `df -h`; final evidence adds RSS by process name and cgroup
-memory events/peak/limit where readable. No hosted resource budget has yet been
-measured for the repaired revision. Local Windows uses GraalVM Java 25 and Docker
+memory events/peak/limit where readable. Hosted measurements for the repaired revision are recorded below. Local Windows uses GraalVM Java 25 and Docker
 Desktop, so a passing local build does not establish hosted success.
 
 Validation's Gradle step has a 25-minute timeout within a 75-minute job, leaving
@@ -438,3 +437,62 @@ No newer digest was substituted without scan and runtime evidence. Current scan,
 local regression and hosted verification results will be recorded below.
 Existing Phase 7 readiness limitations and unresolved base HIGH findings remain
 release blockers. No Phase 9 work or application business changes are included.
+
+### Remediation verification result
+
+Functional commit `467f65cac4bc4e3584bfbd0153fb337c82c7e52c` was pushed on
+`fix/phase8-ci-memory`; [PR #1](https://github.com/Wiesmak/tiket/pull/1) retains
+master as its target. [Hosted CI run 43021380596](https://github.com/Wiesmak/tiket/actions/runs/43021380596)
+completed with **failure**, specifically the image vulnerability gate (exit 1).
+This is a completed diagnostic run, not a cancellation or an unexplained compiler hang.
+
+- Ubuntu 24.04 / Temurin 25.0.5+8; 4 CPUs, 15 GiB RAM, 3 GiB swap unused.
+  Baseline available RAM was 14 GiB. Root disk was 145 GiB total / 85 GiB available.
+- Full clean uncached Gradle build succeeded in 4m55s (step wall time 4m56s).
+  The build JVM printed and asserted heap=1536 MiB, metaspace=1024m, workers=1,
+  including the buildSrc invocation. All five modules and consumer compatibility compiled.
+- Downloaded hosted HTML reports confirm 34 core / 217 backend tests. Both suites
+  passed with no failures/skips. PostgreSQL 18, financial, audit, JWT and TLS coverage
+  remains enabled. No business sources, dependencies or migration bytes changed.
+- Immediately after Gradle, 12 GiB RAM remained available, swap was unused and
+  84 GiB disk remained available. Java RSS was 2,147,396 KiB (about 2.05 GiB).
+  These are snapshots, not peak resource measurements. Cgroup memory files were
+  unavailable in this runner context; no cgroup OOM count is claimed.
+- Safe JVM signal extraction found zero OutOfMemoryError, daemon disappearance,
+  compilation-error and dependency-resolution-error signals. Plain logs contain
+  BUILD SUCCESSFUL and a normal final result. The Metaspace signal includes benign
+  JVM option lines and does not itself mean exhaustion.
+- Hosted Helm validation, npm audit, container build, arbitrary-UID container smoke,
+  full Gateway kind integration (h2c, direct TLS/JWT, two replicas and financial
+  replay), cluster cleanup and evidence upload all succeeded.
+- The workflow syntax step was skipped after the security failure; independent local
+  actionlint 1.7.7 and Bash/Node syntax checks passed. Wrapper argument checks retained
+  a release version and a property containing spaces as separate intact arguments.
+
+Local Windows clean uncached validation succeeded in 8m05s using the requested
+1536m/1024m/one-worker/in-process settings, with 34 core and 217 backend tests,
+zero failures/errors/skips. During the build, jcmd observed about 419 MiB used
+metaspace, exceeding the former 384 MiB limit; this supports the underprovisioning
+diagnosis. It does not recover the original missing exception or prove a compiler
+deadlock. Local Helm, Docker build and Java 25 arbitrary-UID smoke also passed.
+
+Fresh local scans of both the pinned base and rebuilt application, and the hosted
+application scan, report **28 HIGH / 0 CRITICAL records**, all from base packages,
+with no fixed versions reported. There are no Guava HIGH findings in these new
+application scans. Affected package groups/CVEs are listed in the earlier table.
+The live Red Hat latest manifest still matches the pinned digest. No suitable
+patched newer latest image was available in this inspection; the digest remains
+unchanged and the HIGH gate deliberately remains release-blocking. Scanner reports
+are vulnerability evidence, not vendor risk acceptance.
+
+The PR run does not invoke publication. Snapshot/release still call validation
+before the shared publication workflow and would be blocked by the same HIGH scan.
+The protected publication/signing path was reviewed but not executed with owner
+secrets. OpenShift admission, CNPG failover, Podman/native parity and the existing
+Phase 7 readiness gaps remain unverified. Phase 8 is not fully release-ready.
+
+Evidence on this workstation: `build/phase8-hosted.log`,
+`build/phase8-hosted-evidence/`, `build/phase8-base-vulnerabilities.json`,
+`build/phase8-app-vulnerabilities.json`. Downloaded evidence contains the runner
+measurements, test HTML, kind logs and hosted Trivy JSON. Do not publish raw
+workstation daemon logs or crash reports.
