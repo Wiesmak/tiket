@@ -2,6 +2,7 @@ package pl.umamusume.tiket.printing.serial
 
 import com.github.anastaciocintra.escpos.EscPos
 import com.github.anastaciocintra.escpos.image.*
+import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.FilterOutputStream
 import java.io.OutputStream
@@ -23,8 +24,25 @@ class EscPosRasterEncoder {
                 escpos.write(RasterBitImageWrapper(), EscPosImage(CoffeeImageImpl(image.getSubimage(0, y, 384, h)), BitonalThreshold()))
                 y += h
             }
-            // EscPos.feed also emits native font/style configuration. Send only feed control.
-            if (profile.feedLines > 0) output.write(byteArrayOf(27, 100, profile.feedLines.toByte()))
+            // Feed via the supported raster path instead of ESC d, which can be
+            // ignored by firmware or depend on a zero native line-spacing setting.
+            // Keep this separate from the receipt's maxHeight limit.
+            var feedRows = profile.feedLines * 24
+            if (feedRows > 0) {
+                val blank = BufferedImage(384, minOf(profile.bandHeight, feedRows), BufferedImage.TYPE_BYTE_BINARY)
+                val g = blank.createGraphics()
+                try {
+                    g.color = Color.WHITE
+                    g.fillRect(0, 0, blank.width, blank.height)
+                } finally {
+                    g.dispose()
+                }
+                while (feedRows > 0) {
+                    val h = minOf(blank.height, feedRows)
+                    escpos.write(RasterBitImageWrapper(), EscPosImage(CoffeeImageImpl(blank.getSubimage(0, 0, 384, h)), BitonalThreshold()))
+                    feedRows -= h
+                }
+            }
         }
     }
 }

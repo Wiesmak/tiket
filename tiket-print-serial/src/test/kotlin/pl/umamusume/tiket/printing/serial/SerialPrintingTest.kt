@@ -165,7 +165,40 @@ class SerialPrintingTest {
         EscPosRasterEncoder().write(TicketRasterRenderer().render(ticket()), out, profile)
         val bytes = out.toByteArray()
         assertContentEquals(byteArrayOf(29,40,75,2,0,49,50,29,40,75,2,0,50,5), bytes.take(14).toByteArray())
-        assertContentEquals(byteArrayOf(27,100,3), bytes.takeLast(3).toByteArray())
+        val feed = bytes.takeLast(11 + 72 * 48).toByteArray()
+        assertContentEquals(byteArrayOf(27,97,48,29,118,48,0,48,0,72,0), feed.take(11).toByteArray())
+        assertTrue(feed.drop(11).all { it == 0.toByte() })
+    }
+
+    @Test fun feedUsesOnlyWhiteRasterRowsAndPreservesReceipt() {
+        // Exercise a receipt already at maxHeight: paper advance is additional.
+        val image = BufferedImage(384, 256, BufferedImage.TYPE_BYTE_BINARY)
+        val encoder = EscPosRasterEncoder()
+        for (bandHeight in listOf(1, 17, 128, 1024)) {
+            val config = profile.copy(density = null, speed = null, maxHeight = 256, bandHeight = bandHeight, feedLines = 0)
+            val receipt = ByteArrayOutputStream().also { encoder.write(image, it, config) }.toByteArray()
+            for (lines in listOf(0, 1, 3, 8, 20)) {
+                val bytes = ByteArrayOutputStream().also {
+                    encoder.write(image, it, config.copy(feedLines = lines))
+                }.toByteArray()
+                assertContentEquals(receipt, bytes.copyOfRange(0, receipt.size))
+                var offset = receipt.size
+                var rows = 0
+                while (offset < bytes.size) {
+                    assertTrue(offset + 11 <= bytes.size, "Incomplete trailing raster header")
+                    assertContentEquals(byteArrayOf(27,97,48,29,118,48,0,48,0), bytes.copyOfRange(offset, offset + 9))
+                    val h = (bytes[offset + 9].toInt() and 255) or ((bytes[offset + 10].toInt() and 255) shl 8)
+                    assertTrue(h in 1..bandHeight)
+                    offset += 11
+                    assertTrue(offset + h * 48 <= bytes.size, "Incomplete trailing raster payload")
+                    assertTrue(bytes.copyOfRange(offset, offset + h * 48).all { it == 0.toByte() }, "Feed must leave paper white")
+                    offset += h * 48
+                    rows += h
+                }
+                assertEquals(lines * 24, rows)
+                assertEquals(bytes.size, offset) // no native feed or other commands
+            }
+        }
     }
 
     @Test fun invalidProfilesAndSharedPortConflicts() {

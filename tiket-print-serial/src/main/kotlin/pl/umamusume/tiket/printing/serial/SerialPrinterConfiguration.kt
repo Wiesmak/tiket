@@ -11,6 +11,7 @@ data class SerialPrinterConfiguration(
     val writeTimeoutMillis: Int = 5000,
     val density: Int? = 50,
     val speed: Int? = 5,
+    /** Trailing paper advance: each line sends 24 white raster rows, independent of native line spacing. */
     val feedLines: Int = 3,
     val bandHeight: Int = 128,
     val maxHeight: Int = 4000
