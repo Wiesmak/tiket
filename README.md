@@ -38,6 +38,12 @@ Generated sources stay under `tiket-contracts/build` and are ignored by Git.
 ./gradlew :tiket-backend:bootJar --no-configuration-cache
 ```
 
+CI and publication share `bash scripts/ci-gradle.sh`. To reproduce validation:
+`bash scripts/ci-gradle.sh clean build --no-build-cache`.
+It sets a 1536 MiB build heap, 1024 MiB metaspace, one worker, in-process Kotlin,
+plain console and stack traces, and verifies the limits inside the build JVM.
+Normal local Gradle cache and memory defaults are unchanged.
+
 On Windows use `gradlew.bat`. On machines with limited Windows commit memory or
 Kotlin daemon socket failures, append `--max-workers=1 -Pkotlin.compiler.execution.strategy=in-process`.
 Shared test JVMs use a 64 MiB initial / 256 MiB maximum heap and two active processors.

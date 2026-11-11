@@ -388,3 +388,53 @@ compilation or parity test ran. There are no published release digests to report
 
 Phase 9 work is limited to a future comprehensive documentation consolidation; it has not
 been started here. This operational document intentionally tracks incomplete evidence.
+
+## Phase 8 CI remediation (2026-11-11)
+
+The original [Snapshot run](https://github.com/Wiesmak/tiket/actions/runs/43016612780)
+was cancelled. Its recovered log confirms a metaspace exhaustion warning with a
+512 MiB heap / 384 MiB metaspace immediately before backend/core test compilation
+tasks reported failure. No final compiler exception or Gradle stack trace was emitted.
+Insufficient memory with in-process compilation and two workers is the leading
+explanation, not a proven diagnosis of every reported compilation failure.
+
+Validation and the independent publication build now call `scripts/ci-gradle.sh`.
+It supplies `-Dorg.gradle.jvmargs=-Xmx1536m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8`
+as one argument, one worker, in-process Kotlin, no configuration cache, plain output
+and stack traces. `ci-memory.init.gradle` checks the actual build JVM heap/metaspace
+and worker limit before buildSrc compilation. Caller arguments use Bash `"$@"`;
+publication retains `-PreleaseVersion`. Only clean validation disables the build
+cache; ordinary local/publishing cache behavior remains unchanged.
+
+The build JVM's 2.5 GiB heap+metaspace ceiling excludes native memory/code cache.
+A single Gradle worker serializes compilation/test tasks. Test JVMs retain their
+64/256 MiB heap limits and default single fork; PostgreSQL 18 Testcontainers and
+Docker need additional memory. Gradle is stopped before container/kind work to
+release its memory. Do not raise worker count without hosted measurements.
+
+CI retains Ubuntu 24.04 and Temurin Java 25. Baselines record Java/Gradle versions,
+`free -h`, `nproc`, and `df -h`; final evidence adds RSS by process name and cgroup
+memory events/peak/limit where readable. No hosted resource budget has yet been
+measured for the repaired revision. Local Windows uses GraalVM Java 25 and Docker
+Desktop, so a passing local build does not establish hosted success.
+
+Validation's Gradle step has a 25-minute timeout within a 75-minute job, leaving
+room for Docker/kind and cleanup. Publication has a 25-minute Gradle subprocess
+timeout (30-second kill grace), a 45-minute publish step and 60-minute job.
+Always-run diagnostics/daemon stop steps each have two-minute limits.
+Gradle's final errors and stack traces remain in Actions logs; generated validation
+test reports remain artifacts. Raw daemon logs, JVM crash reports and heap dumps
+are never uploaded: the diagnostic extractor emits only fixed error signal counts
+from recent bounded log tails. Environment values, command lines, signing files
+and private configuration are excluded from the new diagnostic artifacts.
+Cancellation diagnostics are best effort; a forced runner termination cannot
+guarantee upload.
+
+Both snapshot and release callers still require `needs: validate`; signing,
+verification, protected environments and HIGH/CRITICAL image gates are unchanged.
+On reinspection, Red Hat's `ubi9/openjdk-25-runtime:latest` still resolves to the
+pinned `sha256:2ddacad5332f4e481353668f210623f7e7420f1561515f5686e5abd33cd6d38f`.
+No newer digest was substituted without scan and runtime evidence. Current scan,
+local regression and hosted verification results will be recorded below.
+Existing Phase 7 readiness limitations and unresolved base HIGH findings remain
+release blockers. No Phase 9 work or application business changes are included.

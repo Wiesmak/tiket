@@ -20,7 +20,8 @@ for repo in wiesmak/tiket wiesmak/charts/tiket; do
  status=$(curl --silent --show-error -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" -H 'Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.list.v2+json' "https://ghcr.io/v2/$repo/manifests/$VERSION")
  test "$status" = 404 || { echo "Refusing publication: $repo:$VERSION status $status"; exit 1; }
 done
-./gradlew build :tiket-backend:bootJar -PreleaseVersion="$VERSION" --no-configuration-cache --max-workers=2
+timeout --signal=TERM --kill-after=30s 25m bash scripts/ci-gradle.sh build :tiket-backend:bootJar "-PreleaseVersion=$VERSION"
+bash scripts/ci-gradle.sh --stop
 cp tiket-{backend,core,contracts,print-api,print-console}/build/libs/*.jar dist/
 docker build --build-arg VERSION="$VERSION" --build-arg REVISION="$GITHUB_SHA" --build-arg CREATED="$(date -u +%FT%TZ)" -t "$image:$VERSION" .
 bash scripts/container-smoke.sh "$image:$VERSION"
