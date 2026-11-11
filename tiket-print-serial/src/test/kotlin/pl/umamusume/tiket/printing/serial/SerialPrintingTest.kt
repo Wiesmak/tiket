@@ -66,8 +66,8 @@ class SerialPrintingTest {
         )
         val renderer = TicketRasterRenderer()
         val image = renderer.render(d)
-        // Legacy logo is 200 x 188, centered directly after the 30px ID block.
-        val top = 8 + 30
+        // Legacy logo remains 200 x 188; the larger ID now has a 36px block.
+        val top = 8 + 36
         var ink = 0
         for (y in top until top + 188) for (x in 0 until 384) {
             val black = image.getRGB(x,y) and 0xffffff == 0
@@ -75,13 +75,34 @@ class SerialPrintingTest {
             if (black) ink++
         }
         assertTrue(ink > 3000, "Logo must be present")
-        assertTrue(image.height in 569..600, "Keep the compact legacy ticket proportions")
+        assertTrue(image.height in 575..650, "Keep compact sections while accommodating larger text")
         assertEquals(image.height, renderer.render(d, image.height).height)
         assertFailsWith<IllegalArgumentException> { renderer.render(d, image.height - 1) }
         // Local visual review artifact; no physical printer needed.
         val preview = java.io.File("build/ticket-preview.png")
         preview.parentFile.mkdirs()
         javax.imageio.ImageIO.write(image, "png", preview)
+    }
+
+    @Test fun thermalTextHasLargerBoldSolidStrokes() {
+        val renderer = TicketRasterRenderer()
+        val d = ticket().copy(ticketId = UUID.fromString("00000000-0000-0000-8888-888888888888"))
+        val lines = renderer.content(d)
+        assertTrue(lines.all { it.bold })
+        assertTrue(lines.filterNot { it.text.contains("----") }.all { it.size >= 16 })
+        assertEquals(24, lines.first().size)
+        assertTrue(lines.filterNot { it.text.contains("----") || it.text.contains("DOŁĄCZ") || it.text.contains("DISCORD") }
+            .all { it.size >= 18 })
+        val image = renderer.render(d)
+        var solidSquares = 0
+        // Examine the ID only, excluding the logo. Solid 2x2 black patches
+        // distinguish substantial strokes from a thin or stippled outline.
+        for (y in 8 until 8 + 36 - 1) for (x in 12 until 371) {
+            if ((0..1).all { dy -> (0..1).all { dx ->
+                image.getRGB(x + dx, y + dy) and 0xffffff == 0
+            } }) solidSquares++
+        }
+        assertTrue(solidSquares > 100, "Text needs substantial solid black strokes")
     }
 
     @Test fun monochromeWhiteMarginsAndLongWrapping() {

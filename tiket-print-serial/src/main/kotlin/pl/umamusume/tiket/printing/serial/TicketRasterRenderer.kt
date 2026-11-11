@@ -29,12 +29,11 @@ class TicketRasterRenderer {
 
     private val date = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ROOT)
 
-    // The legacy generator used centered 384px captions, Monaco at 20/15/18px,
-    // and a 200px-wide logo. Prefer an installed monospace font with similar
-    // glyphs, with the JVM logical font as fallback; no external font is required.
+    // Preserve the legacy sections and 200px-wide logo, with larger bold text
+    // for thermal legibility. Sections expand to fit measured rows.
     private fun sections(d: TicketPrintData): List<Section> {
-        fun line(text: String, size: Int = 15, alignment: Alignment = Alignment.CENTER, right: String? = null) =
-            Line(text, size, false, alignment, right)
+        fun line(text: String, size: Int = 18, alignment: Alignment = Alignment.CENTER, right: String? = null) =
+            Line(text, size, true, alignment, right)
         val id = d.ticketId.toString().replace("-", "").takeLast(16).chunked(4).joinToString(" ")
         val code = when (d.betType) {
             "WIN" -> "ZWC"
@@ -44,7 +43,7 @@ class TicketRasterRenderer {
             else -> error("Unsupported bet type")
         }
         return listOf(
-            Section(listOf(line(id, 20)), 30),
+            Section(listOf(line(id, 24)), 36),
             Section(listOf(line("Tor: ${d.racecourseName}", alignment = Alignment.LEFT, right = "Dzień ${d.raceDayNumber}")), 20),
             Section(listOf(
                 line("Stanowisko: POS (UMA${d.pointOfSaleNumber.toString().padStart(3, '0')})", alignment = Alignment.LEFT),
@@ -60,12 +59,12 @@ class TicketRasterRenderer {
                 line("${d.unitsPerCombination}x${d.unitBetPrice} ${d.currency}   $code ${d.betString}"),
                 line("R: ${d.totalBetUnits}")
             ), 70, 5),
-            Section(listOf(line("Wartość zakładu: ${d.totalBetValue} ${d.currency}", 18)), 50),
+            Section(listOf(line("Wartość zakładu: ${d.totalBetValue} ${d.currency}", 20)), 50),
             Section(listOf(
-                line("------------------------------------"),
-                line("DOŁĄCZ DO NAS   UMAMUSUME POLSKA"),
-                line("DISCORD - umamusume.pl"),
-                line("------------------------------------")
+                line("------------------------------------", 15),
+                line("DOŁĄCZ DO NAS   UMAMUSUME POLSKA", 16),
+                line("DISCORD - umamusume.pl", 16),
+                line("------------------------------------", 15)
             ), 80, 5)
         )
     }
@@ -115,7 +114,12 @@ class TicketRasterRenderer {
             g.color = Color.WHITE
             g.fillRect(0, 0, WIDTH, height)
             g.color = Color.BLACK
+            // Paint opaque black glyphs directly onto the 1-bit canvas. No
+            // antialiasing, grayscale text intermediates, or dithering.
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF)
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF)
+            g.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_DISABLE)
+            g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_OFF)
             var y = MARGIN
             blocks.forEachIndexed { index, block ->
                 val textHeight = block.rows.sumOf { it.height } + block.spacing * (block.rows.size - 1)
