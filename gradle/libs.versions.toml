@@ -49,6 +49,7 @@ springBootStarterFlywayTest = { module = "org.springframework.boot:spring-boot-s
 springBootStarterGrpcServerTest = { module = "org.springframework.boot:spring-boot-starter-grpc-server-test" }
 springBootStarterJdbcTest = { module = "org.springframework.boot:spring-boot-starter-jdbc-test" }
 springBootTestcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
+mockitoCore = { module = "org.mockito:mockito-core" }
 testcontainersPostgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 testcontainersJunit = { module = "org.testcontainers:testcontainers-junit-jupiter" }
 kotlinTestJunit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }

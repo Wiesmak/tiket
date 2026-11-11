@@ -17,6 +17,7 @@ tasks.withType<Test>().configureEach {
     minHeapSize = "64m"
     maxHeapSize = "256m"
     jvmArgs("-XX:ActiveProcessorCount=2")
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
     testLogging {
         events(TestLogEvent.FAILED, TestLogEvent.PASSED, TestLogEvent.SKIPPED)
     }
