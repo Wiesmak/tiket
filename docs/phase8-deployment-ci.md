@@ -567,3 +567,36 @@ The latter is expected to fail while HIGH findings remain.
 
 PR #1 must be merged by the owner before the updated master Snapshot path can run.
 No signed GHCR publication or remote signature verification is claimed by this change.
+
+### Hosted rescan supersedes the earlier local finding counts
+
+[Run 43028992836](https://github.com/Wiesmak/tiket/actions/runs/43028992836),
+commit `fde7981bdfba768db25d9679810276521ddcf56f`, completed with **failure**
+at the shared vulnerability gate. All 52 policy tests, workflow syntax, the clean
+Gradle build, Helm, Docker, arbitrary UID smoke, full Gateway kind and cleanup passed.
+The newer hosted report contains **32 HIGH records: 4 fixable, 24 accepted unfixed,
+4 unverified; 0 CRITICAL**. No exception was added to override these blockers.
+This supersedes the earlier 28-HIGH local/previous-hosted observations above.
+It demonstrates that available fixes invalidate an existing inventory match.
+
+- CVE-2026-53613 now reports status `fixed`, fixed version
+  `2.37.4-28.el9_9`, for libblkid/libmount/libsmartcols/libuuid (installed
+  `2.37.4-25.el9`). These four previously accepted records now BLOCK.
+- New krb5-libs HIGH CVEs CVE-2026-107364, CVE-2026-118380, CVE-2026-71199 and
+  CVE-2026-71200 report `affected` with no fixed version and no matching reviewed
+  exception. These four also BLOCK; blank FixedVersion is insufficient.
+- At 13:37–13:38 UTC, the latest base manifest still matched the pinned digest.
+  A second refreshed repository upgrade query offered only glibc/timezone updates.
+  Explicit installation of the reported fixed package version failed with
+  `No package matches 'libblkid-2.37.4-28.el9_9'`.
+  The report references [RHSA-2026:96212](https://access.redhat.com/errata/RHSA-2026:96212),
+  whose public page describes a RHEL 8 update, not an installable UBI9 fix.
+  This discrepancy requires vendor/scanner investigation or a supported updated
+  UBI9 package/base. It is not permission to ignore a reported fixed version.
+- The original full report, classification summary and scanner/image metadata are
+  in the run's validation-evidence artifact. Release evaluation also fails.
+  The PR is not green and snapshot validation remains blocked on this newer evidence.
+- The repository and protected snapshot environment secret-name lists were empty.
+  Even after vulnerability remediation and owner merge, publication requires
+  TIKET_COSIGN_PRIVATE_KEY and TIKET_COSIGN_PASSWORD. No updated master Snapshot run,
+  GHCR publication or remote image/chart signature verification was performed.
