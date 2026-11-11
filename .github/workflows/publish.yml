@@ -24,7 +24,7 @@ jobs:
           java-version: '25'
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26.8'
+          go-version: '1.27.0'
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22.18.0'
@@ -67,7 +67,9 @@ jobs:
       - name: Stop build JVM
         if: always()
         timeout-minutes: 2
-        run: bash scripts/ci-gradle.sh --stop
+        run: |
+          chmod +x gradlew
+          bash scripts/ci-gradle.sh --stop
       - name: Upload safe build diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
