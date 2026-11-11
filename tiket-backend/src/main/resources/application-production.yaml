@@ -1,0 +1,8 @@
+tiket:
+  transport: ${TIKET_TRANSPORT}
+spring:
+  grpc:
+    server:
+      ssl:
+        enabled: ${GRPC_TLS_ENABLED:false}
+        secure: true

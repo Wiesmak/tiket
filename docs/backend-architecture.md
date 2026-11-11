@@ -71,3 +71,8 @@ new typed v1 account API. RaceDayApplicationService retains day locks through pr
 V1–V4 are reused without a new migration; cashout increments the account version once.
 See [Phase 6](phase6-accounting-closure.md) for proofs, transactions, receipts, performance
 tradeoffs and the boundary between registered cashout and actual disbursement.
+
+
+## Phase 7 security and operations increment
+
+See [security and operations](phase7-security-operations.md) for the RPC matrix, mandatory JWT claims, event/player/POS authorization, native TLS/h2c, separate management HTTP listener, append-only V5 audit/command-actor schema, resource limits, recovery runbooks and exact Phase 8 deployment contract. Earlier phase statements about absent authentication or HTTP describe historical behavior. Application HTTP is disabled; only operational Actuator HTTP is enabled. Phase 7 residual gaps are explicitly listed and deployment readiness is not claimed.

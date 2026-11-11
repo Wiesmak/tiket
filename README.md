@@ -77,8 +77,10 @@ configuration environment. Alternatively:
 java -jar tiket-backend/build/libs/tiket-backend-0.0.1-SNAPSHOT.jar
 ```
 
-These are alternative launch commands. The application starts only a lifecycle-managed Netty
-gRPC server, with no HTTP application server. Stop it normally with IntelliJ Stop or Ctrl+C.
+These are alternative launch commands. Business traffic uses the lifecycle-managed native Netty
+gRPC server. Actuator uses a separate restricted HTTP management listener; the application HTTP
+connector is disabled. Supply JWT_ISSUER, JWT_JWKS_URI and JWT_AUDIENCE for startup outside tests.
+Stop normally with IntelliJ Stop or Ctrl+C.
 
 ## Ping
 
@@ -99,7 +101,7 @@ The ledger is authoritative; account snapshots replay and reconcile history, whi
 totals support efficient display reads. No core APIs were changed.
 Administration and enrollment services/RPCs are implemented in Phase 3. Phase 4 adds typed
 betting, atomic purchases and console dispatch through a transactional outbox.
-Authentication, REST, gRPC-Web and frontend remain absent. See [Phase 4](docs/phase4-betting-printing.md)
+Phase 7 adds JWT authentication and scoped authorization. REST business APIs, gRPC-Web and frontend remain absent. See [Phase 4](docs/phase4-betting-printing.md)
 and [persistence design](docs/backend-persistence.md) for boundaries and usage.
 Docker is required for PersistenceTests: it deliberately fails rather than silently skipping
 the Phase 2 integration suite. Tests cover V1 upgrades, round trips, reconciliation, rollback,
@@ -156,8 +158,8 @@ and [financial rules](docs/financial-rules.md). The integration test is an execu
 Complete race-day creation, publication/start/finalization, betting windows, enrollment and pre-start
 paid/promotional funding are available through typed gRPC. See [Phase 3](docs/phase3-administration.md).
 Definitions are immutable one-shot creations; draft editing is deferred.
-**Administrative endpoints have no authentication or authorization. Keep plaintext on loopback until
-production authentication, authorization and TLS are implemented.** Settlement is implemented in Phase 5.
+Administrative endpoints require trusted EVENT_ADMIN authority and explicit event scope in Phase 7.
+Use the documented direct-TLS or private gateway-h2c mode. Settlement is implemented in Phase 5.
 
 ## Phase 4 betting and printing
 
@@ -180,5 +182,10 @@ Final accounting and event completion/closure are implemented in Phase 6.
 RaceDayService now supports authoritative completion and closure. AccountService provides
 validated balances, withdrawal quotes, terminal cashout, movement history and durable receipts.
 See [Phase 6](docs/phase6-accounting-closure.md) for financial proofs, replay and limitations.
-Registered cashout does not confirm physical payment. Keep financial RPCs on loopback;
-authentication, TLS and operational disbursement integration remain future work.
+Registered cashout does not confirm physical payment. Phase 7 adds scoped JWT security, native TLS
+and operational monitoring; external disbursement integration remains outside this repository.
+
+
+## Phase 7 security and operations increment
+
+See [security and operations](docs/phase7-security-operations.md) for the RPC matrix, mandatory JWT claims, event/player/POS authorization, native TLS/h2c, separate management HTTP listener, append-only V5 audit/command-actor schema, resource limits, recovery runbooks and exact Phase 8 deployment contract. Earlier phase statements about absent authentication or HTTP describe historical behavior. Application HTTP is disabled; only operational Actuator HTTP is enabled. Phase 7 residual gaps are explicitly listed and deployment readiness is not claimed.

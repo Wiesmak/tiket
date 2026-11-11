@@ -49,8 +49,9 @@ internal fun <T : Any> JdbcTemplate.one(sql: String, vararg args: Any?, mapper: 
     query(sql, { rs, _ -> mapper(rs) }, *args).singleOrNull()
 
 @org.springframework.stereotype.Component
-class PersistenceTransactions(manager: PlatformTransactionManager) {
-    private val template = TransactionTemplate(manager)
+class PersistenceTransactions(manager: PlatformTransactionManager,
+    @org.springframework.beans.factory.annotation.Value("\${tiket.database.transaction-timeout-seconds:20}") timeoutSeconds: Int) {
+    private val template = TransactionTemplate(manager).apply { require(timeoutSeconds in 1..300); timeout = timeoutSeconds }
     fun <T : Any> required(block: () -> T): T = template.execute { block() }
 }
 

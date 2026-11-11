@@ -19,6 +19,7 @@ internal fun <T> respond(observer: StreamObserver<T>, work: () -> T) {
         observer.onCompleted()
     } catch (e: Exception) {
         val status = when (e) {
+            is io.grpc.StatusRuntimeException -> e.status
             is MissingRecord -> Status.NOT_FOUND
             is StaleVersionException, is ConcurrencyFailureException -> Status.ABORTED
             is DuplicateKeyException -> Status.ALREADY_EXISTS

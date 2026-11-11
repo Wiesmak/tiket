@@ -471,7 +471,7 @@ class PersistenceTests {
         v1.migrate(); assertThat(v1.info().applied().filter { it.version != null }).hasSize(1)
         val all =
             Flyway.configure().dataSource(postgres.jdbcUrl, postgres.username, postgres.password).schemas(schema).load()
-        all.migrate(); all.validate(); assertThat(all.info().applied().filter { it.version != null }).hasSize(4)
+        all.migrate(); all.validate(); assertThat(all.info().applied().filter { it.version != null }).hasSize(5)
         assertThat(all.migrate().migrationsExecuted).isZero()
         val missing =
             Flyway.configure().dataSource(postgres.jdbcUrl, postgres.username, postgres.password).schemas(schema)
@@ -659,4 +659,35 @@ class PersistenceTests {
         assertThatThrownBy { pools.applyRefundDelta(f.day.id, before.version, key, plan) }
             .isInstanceOf(StaleVersionException::class.java)
     }
+    /** Repeatable baseline, not a throughput assertion; fixtures and writes are outside read timing. */
+    @Test
+    fun authoritativeLedgerScalingBaseline() {
+        val f = fixture()
+        val bean = java.lang.management.ManagementFactory.getThreadMXBean()
+        val allocations = bean as? com.sun.management.ThreadMXBean
+        if (allocations?.isThreadAllocatedMemorySupported == true) allocations.isThreadAllocatedMemoryEnabled = true
+        var written = 0
+        for (size in listOf(0, 10, 100, 500)) {
+            repeat(size - written) { save(f, purchase(f)) }
+            written = size
+            repeat(3) { accounts.load(f.day.id, f.entry.playerId)!! }
+            val wall = mutableListOf<Long>()
+            val cpu = mutableListOf<Long>()
+            val bytes = mutableListOf<Long>()
+            repeat(10) {
+                val thread = Thread.currentThread().threadId()
+                val beforeAllocation = allocations?.getThreadAllocatedBytes(thread) ?: 0
+                val beforeCpu = bean.currentThreadCpuTime
+                val before = System.nanoTime()
+                val snapshot = accounts.load(f.day.id, f.entry.playerId)!!
+                wall += System.nanoTime() - before
+                cpu += bean.currentThreadCpuTime - beforeCpu
+                bytes += (allocations?.getThreadAllocatedBytes(thread) ?: 0) - beforeAllocation
+                assertThat(snapshot.version).isEqualTo(size.toLong())
+            }
+            println("PERF_LEDGER movements=" + size + " median_wall_ns=" + wall.sorted()[5] +
+                " median_cpu_ns=" + cpu.sorted()[5] + " median_allocated_bytes=" + bytes.sorted()[5])
+        }
+    }
+
 }

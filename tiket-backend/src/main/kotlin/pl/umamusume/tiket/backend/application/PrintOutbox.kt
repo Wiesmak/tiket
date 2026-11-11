@@ -25,6 +25,7 @@ class PrintOutbox(
     private val jdbc: JdbcTemplate, private val tx: PersistenceTransactions,
     private val coupons: CouponRepository, private val days: RaceDayRepository,
     private val commands: AdministrationCommands,
+    private val metrics: io.micrometer.core.instrument.MeterRegistry,
     @Value("\${tiket.printing.max-attempts:5}") private val maxAttempts: Int,
     @Value("\${tiket.printing.lease-seconds:60}") private val leaseSeconds: Long
 ) {
@@ -177,6 +178,14 @@ class PrintOutbox(
                 error,
                 c.attempt
             )
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                object : org.springframework.transaction.support.TransactionSynchronization {
+                    override fun afterCommit() {
+                        metrics.counter("tiket.print.dispatch", "outcome", outcome).increment()
+                        metrics.timer("tiket.print.attempt", "outcome", outcome).record(
+                            maxOf(0L, Duration.between(c.startedAt, Instant.now()).toNanos()), java.util.concurrent.TimeUnit.NANOSECONDS)
+                    }
+                })
             val delay = minOf(300L, 1L shl minOf(count, 8))
             jdbc.update(
                 """UPDATE print_job SET status=?,last_error=?,claim_owner=NULL,lease_until=NULL,
@@ -199,12 +208,16 @@ class PrintingConfiguration {
 @Component
 @ConditionalOnProperty(prefix = "tiket.printing", name = ["enabled"], havingValue = "true", matchIfMissing = true)
 class PrintWorker(private val outbox: PrintOutbox, private val printer: TicketPrinter) {
+    @Volatile private var stopping = false
+    @org.springframework.context.event.EventListener(org.springframework.context.event.ContextClosedEvent::class)
+    fun stopClaiming() { stopping = true }
     @Scheduled(fixedDelayString = "\${tiket.printing.poll-millis:1000}")
     fun poll() {
         repeat(10) { if (!dispatchOne()) return }
     }
 
     fun dispatchOne(): Boolean {
+        if (stopping) return false
         check(!org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) { "Dispatch must run outside a transaction" }
         val claim = outbox.claim() ?: return false
         val result = try {
