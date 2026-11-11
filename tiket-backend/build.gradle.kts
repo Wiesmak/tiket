@@ -19,11 +19,13 @@ dependencies {
     implementation(libs.guava) // CVE-2026-102554: override vulnerable transitive 33.6.0.
     implementation(project(":tiket-print-api"))
     implementation(project(":tiket-print-console"))
+    implementation(project(":tiket-print-serial"))
     implementation(project(":tiket-core"))
     implementation(project(":tiket-contracts"))
     implementation(libs.bundles.backend)
     runtimeOnly(libs.bundles.backendRuntime)
     testImplementation(libs.bundles.backendTest)
+    testImplementation(libs.jSerialComm) // Compile-time access for mocked native-port boundary tests.
     testRuntimeOnly(libs.junitPlatformLauncher)
     mockitoAgent(libs.mockitoCore)
 }

@@ -15,6 +15,8 @@ protobufPlugin = "0.9.6"
 protobuf = "4.36.2"
 grpc = "1.84.1"
 junit = "6.0.0"
+escpos-coffee = "4.1.0"
+jSerialComm = "2.11.4"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version = "33.7.2-jre" }
@@ -58,6 +60,8 @@ kotlinxDatetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.r
 kotlinxSerialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJSON" }
 kotlinxCoroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotest = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
+escposCoffee = { module = "com.github.anastaciocintra:escpos-coffee", version.ref = "escpos-coffee" }
+jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "jSerialComm" }
 
 # Libraries can be bundled together for easier import
 [bundles]
@@ -79,6 +83,7 @@ backendTest = ["springBootStarterFlywayTest", "springBootStarterGrpcServerTest",
 grpc = ["protobufJava", "grpcProtobuf", "grpcStub"]
 junit = ["junitJupiterApi", "junitJupiterParams"]
 junitRuntime = ["junitJupiterEngine", "junitPlatformLauncher"]
+serialPrinting = ["escposCoffee", "jSerialComm"]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

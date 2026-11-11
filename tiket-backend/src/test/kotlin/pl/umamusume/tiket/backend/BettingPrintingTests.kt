@@ -159,6 +159,63 @@ class BettingPrintingTests {
 
     fun account(f: Fixture) = accounts.load(RaceDayId(UUID.fromString(f.day)), PlayerId(UUID.fromString(f.player)))!!
 
+    @Test fun serialLanesStartTogetherWithoutClaimingBusyPortBacklog() {
+        val f = fixture()
+        fun buy(pos: Int) = bets.purchaseCoupon(purchase(f).toBuilder().setPointOfSaleNumber(pos).build())
+        buy(1); buy(1); buy(2); buy(99)
+        val entered = CountDownLatch(2)
+        val release = CountDownLatch(1)
+        val seen = ConcurrentHashMap.newKeySet<Int>()
+        val routing = pl.umamusume.tiket.printing.serial.SerialRoutes(mapOf(
+            1 to pl.umamusume.tiket.printing.serial.SerialPrinterConfiguration("COM9"),
+            2 to pl.umamusume.tiket.printing.serial.SerialPrinterConfiguration("COM10")))
+        val worker = SerialPrintWorker(outbox, TicketPrinter {
+            seen.add(it.pointOfSaleNumber); entered.countDown()
+            check(release.await(15, TimeUnit.SECONDS))
+            PrintResult.Dispatched
+        }, routing, jdbc, tx)
+        try {
+            worker.poll()
+            assertThat(entered.await(15, TimeUnit.SECONDS)).isTrue()
+            repeat(10) { worker.poll() }
+            assertThat(seen).containsExactlyInAnyOrder(1, 2)
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM print_job WHERE status='CLAIMED'", Int::class.java)).isEqualTo(2)
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM print_job WHERE status='PENDING'", Int::class.java)).isEqualTo(2)
+        } finally { release.countDown(); worker.stopClaiming() }
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM print_job WHERE status='DISPATCHED'", Int::class.java)).isEqualTo(2)
+        assertThat(account(f).balance.amount).isEqualTo(9520)
+    }
+
+    @Test fun expiredSerialOwnerCannotCompleteBeforeReclaim() {
+        val f = fixture()
+        bets.purchaseCoupon(purchase(f).toBuilder().setPointOfSaleNumber(1).build())
+        val claim = outbox.claimForPos(setOf(1))!!
+        jdbc.update("UPDATE print_job SET lease_until=clock_timestamp()-interval '1 second' WHERE id=?", claim.job)
+        SerialLeaseCompletion(outbox, jdbc, tx).complete(claim, PrintResult.Dispatched)
+        assertThat(jdbc.queryForObject("SELECT status FROM print_job WHERE id=?", String::class.java, claim.job)).isEqualTo("CLAIMED")
+        val retry = outbox.claimForPos(setOf(1))!!
+        assertThat(retry.attempt).isNotEqualTo(claim.attempt)
+    }
+
+    @Test fun filteredClaimsAreConcurrentAndNeverConsumeOtherPos() {
+        val f = fixture()
+        val a = bets.purchaseCoupon(purchase(f).toBuilder().setPointOfSaleNumber(1).build())
+        val b = bets.purchaseCoupon(purchase(f).toBuilder().setPointOfSaleNumber(2).build())
+        assertThat(outbox.claimForPos(setOf(3))).isNull()
+        val claims = ConcurrentHashMap<Int, ClaimedPrint>()
+        assertThat(compete { index ->
+            claims[index + 1] = outbox.claimForPos(setOf(index + 1))!!
+        }).containsOnlyNulls()
+        assertThat(claims.getValue(1).job.toString()).isEqualTo(a.printJobId)
+        assertThat(claims.getValue(2).job.toString()).isEqualTo(b.printJobId)
+        assertThat(outbox.claimForPos(setOf(1, 2))).isNull()
+        claims.forEach { (pos, claim) ->
+            assertThat(outbox.data(claim).pointOfSaleNumber).isEqualTo(pos)
+            outbox.complete(claim, PrintResult.Dispatched)
+        }
+        assertThat(account(f).balance.amount).isEqualTo(9760)
+    }
+
     @ParameterizedTest
     @CsvSource(
         "WIN,1,1", "QUINELLA,1/2,1", "EXACTA,1/2,1", "TRIFECTA,1/2/3,1",

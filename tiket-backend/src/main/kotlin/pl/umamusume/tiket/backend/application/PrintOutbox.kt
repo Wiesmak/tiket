@@ -81,12 +81,23 @@ class PrintOutbox(
         }
     }
 
-    fun claim(): ClaimedPrint? = tx.required {
+    fun claim(): ClaimedPrint? = claimMatching(null)
+
+    fun claimForPos(posNumbers: Set<Int>): ClaimedPrint? {
+        require(posNumbers.isNotEmpty() && posNumbers.size <= 64 && posNumbers.all { it > 0 })
+        return claimMatching(posNumbers)
+    }
+
+    private fun claimMatching(posNumbers: Set<Int>?): ClaimedPrint? = tx.required {
+        val routeFilter = if (posNumbers == null) "" else
+            " AND EXISTS (SELECT 1 FROM coupon c WHERE c.id=j.coupon_id AND c.pos_number IN (" +
+                posNumbers.joinToString(",") { "?" } + "))"
         val id = jdbc.one(
-            """SELECT id FROM print_job WHERE
-            (status IN ('PENDING','RETRYING') AND next_attempt_at<=clock_timestamp())
-            OR (status='CLAIMED' AND lease_until<=clock_timestamp())
-            ORDER BY enqueued_at,id FOR UPDATE SKIP LOCKED LIMIT 1"""
+            """SELECT j.id FROM print_job j WHERE
+            ((status IN ('PENDING','RETRYING') AND next_attempt_at<=clock_timestamp())
+            OR (status='CLAIMED' AND lease_until<=clock_timestamp()))$routeFilter
+            ORDER BY enqueued_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT 1""",
+            *(posNumbers?.toTypedArray() ?: emptyArray<Int>())
         ) { it.uuid("id") }
         if (id == null) return@required emptyList<ClaimedPrint>()
         // An expired attempt has an unknown dispatch outcome. Retry can duplicate output.
@@ -202,11 +213,13 @@ class PrintOutbox(
 class PrintingConfiguration {
     @Bean
     @org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean(TicketPrinter::class)
+    @ConditionalOnProperty(prefix = "tiket.printing", name = ["backend"], havingValue = "console", matchIfMissing = true)
     fun ticketPrinter(): TicketPrinter = ConsoleTicketPrinter()
 }
 
 @Component
 @ConditionalOnProperty(prefix = "tiket.printing", name = ["enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "tiket.printing", name = ["backend"], havingValue = "console", matchIfMissing = true)
 class PrintWorker(private val outbox: PrintOutbox, private val printer: TicketPrinter) {
     @Volatile private var stopping = false
     @org.springframework.context.event.EventListener(org.springframework.context.event.ContextClosedEvent::class)

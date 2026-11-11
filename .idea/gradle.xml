@@ -25,6 +25,7 @@
             <option value="$PROJECT_DIR$/tiket-core" />
             <option value="$PROJECT_DIR$/tiket-print-api" />
             <option value="$PROJECT_DIR$/tiket-print-console" />
+            <option value="$PROJECT_DIR$/tiket-print-serial" />
           </set>
         </option>
       </GradleProjectSettings>
