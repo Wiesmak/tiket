@@ -2,12 +2,16 @@ name: CI
 on:
   pull_request:
   workflow_call:
+    inputs:
+      vulnerability-policy:
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
   validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: gradle/actions/wrapper-validation@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
@@ -18,7 +22,41 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22.18.0'
-      - run: chmod +x gradlew && ./gradlew clean build --no-configuration-cache --no-build-cache --max-workers=2 -Pkotlin.compiler.execution.strategy=in-process
+      - name: Select trusted vulnerability policy
+        env:
+          REQUESTED_POLICY: ${{ inputs.vulnerability-policy }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            echo "VULNERABILITY_POLICY=development" >> "$GITHUB_ENV"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            [[ "$REQUESTED_POLICY" == release ]]
+            echo "VULNERABILITY_POLICY=release" >> "$GITHUB_ENV"
+          else
+            [[ "$GITHUB_REF" == refs/heads/master && "$REQUESTED_POLICY" == development ]]
+            echo "VULNERABILITY_POLICY=development" >> "$GITHUB_ENV"
+          fi
+      - name: Vulnerability policy unit tests
+        run: node --test scripts/security/*.test.mjs
+      - name: Validate workflow syntax
+        run: docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.7
+      - name: Runner resource baseline
+        run: |
+          chmod +x gradlew
+          mkdir -p build/ci-diagnostics
+          { java -version; bash scripts/ci-gradle.sh --version; free -h; nproc; df -h; } 2>&1 | tee build/ci-diagnostics/resources-initial.txt
+      - name: Clean compilation and full regression suite
+        timeout-minutes: 25
+        run: |
+          chmod +x gradlew
+          bash scripts/ci-gradle.sh clean build --no-build-cache
+      - name: Capture Gradle and resource diagnostics
+        if: always()
+        timeout-minutes: 2
+        run: bash scripts/ci-diagnostics.sh
+      - name: Stop build JVM before Docker and kind
+        if: always()
+        timeout-minutes: 2
+        run: bash scripts/ci-gradle.sh --stop
       - run: bash scripts/install-ci-tools.sh
       - run: npm ci --prefix scripts
       - run: npm audit --prefix scripts --audit-level=high
@@ -30,12 +68,18 @@ jobs:
       - name: Remove only this invocation's cluster
         if: always() && steps.kind.outputs.cluster != ''
         run: kind delete cluster --name "${{ steps.kind.outputs.cluster }}"
-      - name: Image vulnerability gate
+      - name: Package inspectable unsigned CI artifacts
         run: |
-          mkdir -p build/supply-chain
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/build/supply-chain:/out" aquasec/trivy:0.67.2 image --scanners vuln --severity HIGH,CRITICAL --format json --output /out/vulnerabilities.json --exit-code 1 tiket:kind
-      - name: Validate workflow syntax
-        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7
+          mkdir -p build/unsigned-ci
+          cp tiket-{backend,core,contracts,print-api,print-console}/build/libs/*.jar build/unsigned-ci/
+          helm package charts/tiket --destination build/unsigned-ci
+          echo "UNSIGNED CI TEST ARTIFACTS — NOT A SIGNED GHCR SNAPSHOT — NOT PRODUCTION APPROVED" > build/unsigned-ci/NOTICE.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: unsigned-ci-test-artifacts
+          path: build/unsigned-ci/
+      - name: Image vulnerability gate
+        run: node scripts/security/scan-image.mjs "$VULNERABILITY_POLICY" tiket:kind build/supply-chain
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -43,5 +87,5 @@ jobs:
           path: |
             build/kind-*
             **/build/reports/tests/
-            build/java-version.log
+            build/ci-diagnostics/
             build/supply-chain/

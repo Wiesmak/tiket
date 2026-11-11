@@ -9,10 +9,10 @@ permissions:
   contents: read
 jobs:
   publish:
-    if: github.repository == 'Wiesmak/tiket' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+    if: github.repository == 'Wiesmak/tiket' && github.event_name == 'push' && ((inputs.channel == 'snapshot' && github.ref == 'refs/heads/master' && github.workflow_ref == 'Wiesmak/tiket/.github/workflows/snapshot.yml@refs/heads/master') || (inputs.channel == 'release' && startsWith(github.ref, 'refs/tags/v') && startsWith(github.workflow_ref, 'Wiesmak/tiket/.github/workflows/release.yml@refs/tags/v')))
     environment: ${{ inputs.channel }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
@@ -37,17 +37,47 @@ jobs:
           if [[ "$CHANNEL" == release ]]; then
             [[ "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
             echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-          else
+          elif [[ "$CHANNEL" == snapshot ]]; then
             echo "VERSION=0.0.0-dev.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT.g${GITHUB_SHA:0:8}" >> "$GITHUB_ENV"
+          else
+            echo "Invalid publication channel" >&2
+            exit 1
           fi
+      # Both callers (snapshot.yml and release.yml) require needs: validate.
+      # Keep the existing trust guard and environment-scoped secrets unchanged.
+      - name: Runner resource baseline
+        run: |
+          mkdir -p build/ci-diagnostics
+          chmod +x gradlew
+          { java -version; bash scripts/ci-gradle.sh --version; free -h; nproc; df -h; } 2>&1 | tee build/ci-diagnostics/resources-initial.txt
       - name: Publish, sign and verify
+        timeout-minutes: 45
         env:
+          CHANNEL: ${{ inputs.channel }}
           GH_TOKEN: ${{ github.token }}
           TIKET_COSIGN_PRIVATE_KEY: ${{ secrets.TIKET_COSIGN_PRIVATE_KEY }}
           TIKET_COSIGN_PASSWORD: ${{ secrets.TIKET_COSIGN_PASSWORD }}
           TIKET_SIGNING_CERT: ${{ secrets.TIKET_SIGNING_CERT }}
           TIKET_SIGNING_CERT_CHAIN: ${{ secrets.TIKET_SIGNING_CERT_CHAIN }}
         run: chmod +x gradlew && bash scripts/publish.sh
+      - name: Capture safe build diagnostics
+        if: always()
+        timeout-minutes: 2
+        run: bash scripts/ci-diagnostics.sh
+      - name: Stop build JVM
+        if: always()
+        timeout-minutes: 2
+        run: bash scripts/ci-gradle.sh --stop
+      - name: Upload safe build diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: publication-build-diagnostics
+          path: |
+            build/ci-diagnostics/
+            dist/vulnerabilities.json
+            dist/vulnerability-summary.json
+            dist/scan-metadata.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: signed-artifacts-${{ env.VERSION }}

@@ -388,3 +388,284 @@ compilation or parity test ran. There are no published release digests to report
 
 Phase 9 work is limited to a future comprehensive documentation consolidation; it has not
 been started here. This operational document intentionally tracks incomplete evidence.
+
+## Phase 8 CI remediation (2026-11-11)
+
+The original [Snapshot run](https://github.com/Wiesmak/tiket/actions/runs/43016612780)
+was cancelled. Its recovered log confirms a metaspace exhaustion warning with a
+512 MiB heap / 384 MiB metaspace immediately before backend/core test compilation
+tasks reported failure. No final compiler exception or Gradle stack trace was emitted.
+Insufficient memory with in-process compilation and two workers is the leading
+explanation, not a proven diagnosis of every reported compilation failure.
+
+Validation and the independent publication build now call `scripts/ci-gradle.sh`.
+It supplies `-Dorg.gradle.jvmargs=-Xmx1536m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8`
+as one argument, one worker, in-process Kotlin, no configuration cache, plain output
+and stack traces. `ci-memory.init.gradle` checks the actual build JVM heap/metaspace
+and worker limit before buildSrc compilation. Caller arguments use Bash `"$@"`;
+publication retains `-PreleaseVersion`. Only clean validation disables the build
+cache; ordinary local/publishing cache behavior remains unchanged.
+
+The build JVM's 2.5 GiB heap+metaspace ceiling excludes native memory/code cache.
+A single Gradle worker serializes compilation/test tasks. Test JVMs retain their
+64/256 MiB heap limits and default single fork; PostgreSQL 18 Testcontainers and
+Docker need additional memory. Gradle is stopped before container/kind work to
+release its memory. Do not raise worker count without hosted measurements.
+
+CI retains Ubuntu 24.04 and Temurin Java 25. Baselines record Java/Gradle versions,
+`free -h`, `nproc`, and `df -h`; final evidence adds RSS by process name and cgroup
+memory events/peak/limit where readable. Hosted measurements for the repaired revision are recorded below. Local Windows uses GraalVM Java 25 and Docker
+Desktop, so a passing local build does not establish hosted success.
+
+Validation's Gradle step has a 25-minute timeout within a 75-minute job, leaving
+room for Docker/kind and cleanup. Publication has a 25-minute Gradle subprocess
+timeout (30-second kill grace), a 45-minute publish step and 60-minute job.
+Always-run diagnostics/daemon stop steps each have two-minute limits.
+Gradle's final errors and stack traces remain in Actions logs; generated validation
+test reports remain artifacts. Raw daemon logs, JVM crash reports and heap dumps
+are never uploaded: the diagnostic extractor emits only fixed error signal counts
+from recent bounded log tails. Environment values, command lines, signing files
+and private configuration are excluded from the new diagnostic artifacts.
+Cancellation diagnostics are best effort; a forced runner termination cannot
+guarantee upload.
+
+Both snapshot and release callers still require `needs: validate`; signing,
+verification, protected environments and HIGH/CRITICAL image gates are unchanged.
+On reinspection, Red Hat's `ubi9/openjdk-25-runtime:latest` still resolves to the
+pinned `sha256:2ddacad5332f4e481353668f210623f7e7420f1561515f5686e5abd33cd6d38f`.
+No newer digest was substituted without scan and runtime evidence. Current scan,
+local regression and hosted verification results will be recorded below.
+Existing Phase 7 readiness limitations and unresolved base HIGH findings remain
+release blockers. No Phase 9 work or application business changes are included.
+
+### Remediation verification result
+
+Functional commit `467f65cac4bc4e3584bfbd0153fb337c82c7e52c` was pushed on
+`fix/phase8-ci-memory`; [PR #1](https://github.com/Wiesmak/tiket/pull/1) retains
+master as its target. [Hosted CI run 43021380596](https://github.com/Wiesmak/tiket/actions/runs/43021380596)
+completed with **failure**, specifically the image vulnerability gate (exit 1).
+This is a completed diagnostic run, not a cancellation or an unexplained compiler hang.
+
+- Ubuntu 24.04 / Temurin 25.0.5+8; 4 CPUs, 15 GiB RAM, 3 GiB swap unused.
+  Baseline available RAM was 14 GiB. Root disk was 145 GiB total / 85 GiB available.
+- Full clean uncached Gradle build succeeded in 4m55s (step wall time 4m56s).
+  The build JVM printed and asserted heap=1536 MiB, metaspace=1024m, workers=1,
+  including the buildSrc invocation. All five modules and consumer compatibility compiled.
+- Downloaded hosted HTML reports confirm 34 core / 217 backend tests. Both suites
+  passed with no failures/skips. PostgreSQL 18, financial, audit, JWT and TLS coverage
+  remains enabled. No business sources, dependencies or migration bytes changed.
+- Immediately after Gradle, 12 GiB RAM remained available, swap was unused and
+  84 GiB disk remained available. Java RSS was 2,147,396 KiB (about 2.05 GiB).
+  These are snapshots, not peak resource measurements. Cgroup memory files were
+  unavailable in this runner context; no cgroup OOM count is claimed.
+- Safe JVM signal extraction found zero OutOfMemoryError, daemon disappearance,
+  compilation-error and dependency-resolution-error signals. Plain logs contain
+  BUILD SUCCESSFUL and a normal final result. The Metaspace signal includes benign
+  JVM option lines and does not itself mean exhaustion.
+- Hosted Helm validation, npm audit, container build, arbitrary-UID container smoke,
+  full Gateway kind integration (h2c, direct TLS/JWT, two replicas and financial
+  replay), cluster cleanup and evidence upload all succeeded.
+- The workflow syntax step was skipped after the security failure; independent local
+  actionlint 1.7.7 and Bash/Node syntax checks passed. Wrapper argument checks retained
+  a release version and a property containing spaces as separate intact arguments.
+
+Local Windows clean uncached validation succeeded in 8m05s using the requested
+1536m/1024m/one-worker/in-process settings, with 34 core and 217 backend tests,
+zero failures/errors/skips. During the build, jcmd observed about 419 MiB used
+metaspace, exceeding the former 384 MiB limit; this supports the underprovisioning
+diagnosis. It does not recover the original missing exception or prove a compiler
+deadlock. Local Helm, Docker build and Java 25 arbitrary-UID smoke also passed.
+
+Fresh local scans of both the pinned base and rebuilt application, and the hosted
+application scan, report **28 HIGH / 0 CRITICAL records**, all from base packages,
+with no fixed versions reported. There are no Guava HIGH findings in these new
+application scans. Affected package groups/CVEs are listed in the earlier table.
+The live Red Hat latest manifest still matches the pinned digest. No suitable
+patched newer latest image was available in this inspection; the digest remains
+unchanged and the HIGH gate deliberately remains release-blocking. Scanner reports
+are vulnerability evidence, not vendor risk acceptance.
+
+The PR run does not invoke publication. Snapshot/release still call validation
+before the shared publication workflow and would be blocked by the same HIGH scan.
+The protected publication/signing path was reviewed but not executed with owner
+secrets. OpenShift admission, CNPG failover, Podman/native parity and the existing
+Phase 7 readiness gaps remain unverified. Phase 8 is not fully release-ready.
+
+Evidence on this workstation: `build/phase8-hosted.log`,
+`build/phase8-hosted-evidence/`, `build/phase8-base-vulnerabilities.json`,
+`build/phase8-app-vulnerabilities.json`. Downloaded evidence contains the runner
+measurements, test HTML, kind logs and hosted Trivy JSON. Do not publish raw
+workstation daemon logs or crash reports.
+
+
+## Current development policy: all HIGH findings warn (2026-11-11)
+
+The owner explicitly accepts **all HIGH vulnerabilities for PR CI and development
+snapshots**, including known fixable, unfixed, new, unknown-status, OS and Java/JAR
+findings. HIGH findings are risk warnings, not development gate failures.
+This supersedes the earlier no-fix-only exception policy and its November 25 expiry.
+
+| Evidence | PR / master snapshot | Official tagged release |
+| --- | --- | --- |
+| No HIGH or CRITICAL | PASS | PASS |
+| Any HIGH, no CRITICAL | WARN_HIGH (successful gate) | FAIL |
+| Any CRITICAL, with or without a fix | FAIL | FAIL |
+| Scanner error, missing/malformed evidence | FAIL | FAIL |
+| MEDIUM / LOW | Report | Report |
+
+Both CI and publication use the same `vulnerability-gate.mjs` through
+`scan-image.mjs`. The full unfiltered Trivy 0.67.2 archive scan, image-identity
+check, OS/JAR target validation and scanner error handling remain enabled.
+No CVE suppression, severity downgrade or ignore-unfixed option is used.
+The JSON summary reports actual HIGH/CRITICAL counts, reported fixes/status/source,
+all scanned target categories, the selected gate decision and both development/release
+decisions. Actions emit warnings and a table; original JSON and scanner/image metadata
+remain in `validation-evidence` (publication also retains them in its evidence and
+embeds the summary with image/chart digests in provenance).
+
+The historical `scripts/security/development-exceptions.json` retains the original
+exact CVE/package/version review inventory for audit only. It is marked historical,
+is not loaded by either scanner or evaluator, and cannot affect a gate through
+matches, omissions, dates or expiry. The earlier CVE tables and hosted findings below
+remain evidence; accepting development risk does not resolve those vulnerabilities.
+Fixes should still be adopted when supported packages become available.
+
+Every development snapshot carries:
+**DEVELOPMENT SNAPSHOT — NOT PRODUCTION APPROVED**.
+A HIGH warning can include vulnerabilities with available fixes or uncertain vendor
+status. It does not mean the vulnerability is fixed, nonexploitable or production safe.
+Official releases still fail on every HIGH/CRITICAL and retain the Phase 7 readiness gaps.
+
+The unprivileged PR workflow forces development policy, runs all Gradle/PostgreSQL 18,
+Helm, Docker/UID, policy and kind tests, and receives no protected publishing secrets.
+Release-tag validation rejects development policy. Trusted master snapshots and exact
+SemVer releases retain `needs: validate`, matching caller/ref/channel checks,
+protected environments, minimal token permissions and a second exact-image scan
+before publication. Both OCI image and chart must be signed by digest and verified.
+Missing/incompatible keys, registry failures and signature errors remain failures.
+
+The owner has configured the expected signing key/password secret names in both
+snapshot and release environments; their names were verified without reading values.
+Actual protected signing and GHCR publication remain to be verified after owner merge.
+No merge, release tag, production approval or signed snapshot is implied by green PR CI.
+
+`unsigned-ci-test-artifacts` is packaged and uploaded after successful functional,
+Helm, Docker and kind checks, **before** the vulnerability gate. It contains JVM JARs,
+a Helm package and `UNSIGNED CI TEST ARTIFACTS — NOT A SIGNED GHCR SNAPSHOT` notice.
+It remains inspectable even if a later CRITICAL gate fails. Security evidence uploads
+always run. Downloadable CI artifacts and signed GHCR snapshots are distinct.
+
+Run `node --test scripts/security/*.test.mjs` for policy tests.
+For an image scan:
+`node scripts/security/scan-image.mjs development tiket:kind build/security`.
+Evaluate the same evidence strictly:
+`node scripts/security/vulnerability-gate.mjs release build/security/vulnerabilities.json build/security/release-summary.json`.
+The previous hosted report has 32 HIGH / 0 CRITICAL; under this policy it yields
+development WARN_HIGH and release FAIL. Current counts must come from each fresh scan.
+
+## Earlier no-fix-only development policy (superseded)
+
+The following policy and run results are historical. The all-HIGH development policy
+above supersedes their development blockers and inventory expiry. Release rules remain strict.
+
+This section supersedes historical all-HIGH blocking statements above for PRs and
+development snapshots only. A green PR means functional validation and the development
+security policy passed. It does not mean a snapshot was published or signed.
+A development snapshot may carry explicitly accepted unresolved HIGH risk.
+A signed development snapshot additionally requires actual GHCR publication, Cosign
+signing and verification of both image and chart digests. Neither constitutes
+production approval. An official release always blocks every HIGH and CRITICAL;
+the separate Phase 7 production-readiness gaps remain unresolved.
+
+Both CI and publication call `scripts/security/scan-image.mjs`, using pinned Trivy
+0.67.2 to scan a fresh Docker image archive without exposing the Docker socket.
+The scan is unfiltered (all severities, OS and Java targets), uses exit-code 0 for
+findings, and must complete successfully before `vulnerability-gate.mjs` evaluates it.
+Scanner errors, malformed evidence, CRITICAL, fixable HIGH and unverified HIGH block.
+Red Hat OS HIGH with no fixed version and authoritative `will_not_fix` or
+`fix_deferred` status may pass development with a warning. Missing fixes or
+`affected` status alone never imply approval.
+
+The owner-authorized `scripts/security/development-exceptions.json` inventory
+narrowly accepts 26 currently affected records until **2026-11-25 UTC**.
+It matches exact CVE, package, installed version, vendor source/status and package
+layer, bound to the pinned base's two immutable rootfs layers. The inventory records
+the corresponding base manifest digest and vendor advisory URLs.
+The remaining two HIGH records have Red Hat `will_not_fix` evidence.
+Every fixed-version result overrides the inventory, every CRITICAL blocks, and
+new/unmatched affected HIGH fails. Changed versions, layers or expired review also
+invalidate acceptance. Review at least every 14 days, refresh vendor package
+availability, and adopt supported vendor fixes as soon as available; never extend
+the date without reviewing fresh evidence. These findings can still be exploitable.
+
+Fresh local and downloaded hosted evidence both report **28 HIGH, 0 CRITICAL,
+0 fixable HIGH**. Local development evaluation warns and passes; strict release
+evaluation of the same full report fails. On 2026-11-11 Red Hat latest still resolved
+to the pinned `sha256:2ddacad5332f4e481353668f210623f7e7420f1561515f5686e5abd33cd6d38f`.
+A disposable `microdnf --refresh upgrade --assumeno` vendor-repository query offered
+only glibc and timezone updates, not updates for the affected packages. No newer
+patched supported latest base or vendor fix for these HIGH findings was available.
+This is dated evidence, not a promise about future remediation.
+
+Validation evidence contains the original `vulnerabilities.json`, scanner version,
+scan time, image ID/digests/layers, all severity counts, and a classification inventory
+with status/fixed versions, policy, expiry and final decision. Actions summaries show
+CRITICAL, fixable/unfixed/unverified HIGH and exceptions. The full scan is never
+filtered or replaced by the summary. Published provenance embeds that summary beside
+the published image/chart digests, and checksums cover the JSON evidence.
+Snapshot image description, Helm annotation and NOTICE prominently state:
+**DEVELOPMENT SNAPSHOT — NOT PRODUCTION APPROVED**.
+
+Reusable CI requires an explicit policy from trusted callers: snapshot passes
+development; release passes release after exact SemVer validation. Tag-context CI
+rejects development even if accidentally requested. PR CI forces development and has
+read-only permissions. Publication accepts only matching push event, ref, channel
+and top-level snapshot/release workflow identity, with the existing protected
+environment and `needs: validate`. Missing signing key/password fails before publication.
+Signatures and their verification are mandatory.
+
+Downloadable `unsigned-ci-test-artifacts` contains JVM JARs and a Helm package for
+inspection after successful validation. These are explicitly unsigned test artifacts;
+they are not signed GHCR snapshots. Workflow syntax validation now precedes scanning.
+Run policy tests with `node --test scripts/security/*.test.mjs`.
+Run a complete scan with
+`node scripts/security/scan-image.mjs development tiket:kind build/security`, then
+check the strict policy using
+`node scripts/security/vulnerability-gate.mjs release build/security/vulnerabilities.json build/security/release-summary.json`.
+The latter is expected to fail while HIGH findings remain.
+
+PR #1 must be merged by the owner before the updated master Snapshot path can run.
+No signed GHCR publication or remote signature verification is claimed by this change.
+
+### Hosted rescan supersedes the earlier local finding counts
+
+[Run 43028992836](https://github.com/Wiesmak/tiket/actions/runs/43028992836),
+commit `fde7981bdfba768db25d9679810276521ddcf56f`, completed with **failure**
+at the shared vulnerability gate. All 52 policy tests, workflow syntax, the clean
+Gradle build, Helm, Docker, arbitrary UID smoke, full Gateway kind and cleanup passed.
+The newer hosted report contains **32 HIGH records: 4 fixable, 24 accepted unfixed,
+4 unverified; 0 CRITICAL**. No exception was added to override these blockers.
+This supersedes the earlier 28-HIGH local/previous-hosted observations above.
+It demonstrates that available fixes invalidate an existing inventory match.
+
+- CVE-2026-53613 now reports status `fixed`, fixed version
+  `2.37.4-28.el9_9`, for libblkid/libmount/libsmartcols/libuuid (installed
+  `2.37.4-25.el9`). These four previously accepted records now BLOCK.
+- New krb5-libs HIGH CVEs CVE-2026-107364, CVE-2026-118380, CVE-2026-71199 and
+  CVE-2026-71200 report `affected` with no fixed version and no matching reviewed
+  exception. These four also BLOCK; blank FixedVersion is insufficient.
+- At 13:37–13:38 UTC, the latest base manifest still matched the pinned digest.
+  A second refreshed repository upgrade query offered only glibc/timezone updates.
+  Explicit installation of the reported fixed package version failed with
+  `No package matches 'libblkid-2.37.4-28.el9_9'`.
+  The report references [RHSA-2026:96212](https://access.redhat.com/errata/RHSA-2026:96212),
+  whose public page describes a RHEL 8 update, not an installable UBI9 fix.
+  This discrepancy requires vendor/scanner investigation or a supported updated
+  UBI9 package/base. It is not permission to ignore a reported fixed version.
+- The original full report, classification summary and scanner/image metadata are
+  in the run's validation-evidence artifact. Release evaluation also fails.
+  The PR is not green and snapshot validation remains blocked on this newer evidence.
+- The repository and protected snapshot environment secret-name lists were empty.
+  Even after vulnerability remediation and owner merge, publication requires
+  TIKET_COSIGN_PRIVATE_KEY and TIKET_COSIGN_PASSWORD. No updated master Snapshot run,
+  GHCR publication or remote image/chart signature verification was performed.

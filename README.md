@@ -38,6 +38,12 @@ Generated sources stay under `tiket-contracts/build` and are ignored by Git.
 ./gradlew :tiket-backend:bootJar --no-configuration-cache
 ```
 
+CI and publication share `bash scripts/ci-gradle.sh`. To reproduce validation:
+`bash scripts/ci-gradle.sh clean build --no-build-cache`.
+It sets a 1536 MiB build heap, 1024 MiB metaspace, one worker, in-process Kotlin,
+plain console and stack traces, and verifies the limits inside the build JVM.
+Normal local Gradle cache and memory defaults are unchanged.
+
 On Windows use `gradlew.bat`. On machines with limited Windows commit memory or
 Kotlin daemon socket failures, append `--max-workers=1 -Pkotlin.compiler.execution.strategy=in-process`.
 Shared test JVMs use a 64 MiB initial / 256 MiB maximum heap and two active processors.
@@ -195,3 +201,12 @@ and operational monitoring; external disbursement integration remains outside th
 ## Phase 7 security and operations increment
 
 See [security and operations](docs/phase7-security-operations.md) for the RPC matrix, mandatory JWT claims, event/player/POS authorization, native TLS/h2c, separate management HTTP listener, append-only V5 audit/command-actor schema, resource limits, recovery runbooks and exact Phase 8 deployment contract. Earlier phase statements about absent authentication or HTTP describe historical behavior. Application HTTP is disabled; only operational Actuator HTTP is enabled. Phase 7 residual gaps are explicitly listed and deployment readiness is not claimed.
+
+Development builds: PR evidence includes unsigned JVM/Helm test artifacts, uploaded
+before the vulnerability gate. PRs and master snapshots permit **all HIGH findings
+with warnings**, including fixable and unknown-status findings; CRITICAL findings,
+scanner errors and invalid evidence always block. Official releases block HIGH and
+CRITICAL. Development artifacts are **not production-approved**. Trusted master
+snapshots require GHCR publication plus verified image/chart signatures.
+See [Phase 8 vulnerability policy](docs/phase8-deployment-ci.md#current-development-policy-all-high-findings-warn-2026-11-11)
+for the exact policy, full security evidence, historical CVE inventory and signing requirements.

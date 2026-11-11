@@ -1,0 +1,9 @@
+// Runs inside the build JVM, before buildSrc compilation.
+def heapMiB = Runtime.runtime.maxMemory() / (1024 * 1024)
+def metaspace = java.lang.management.ManagementFactory.runtimeMXBean.inputArguments.find {
+    it.startsWith('-XX:MaxMetaspaceSize=')
+}
+println "CI build JVM: maxHeapMiB=${heapMiB}, ${metaspace}, workers=${gradle.startParameter.maxWorkerCount}"
+assert heapMiB >= 1500 && heapMiB <= 1600 : 'Unexpected CI build JVM heap'
+assert metaspace == '-XX:MaxMetaspaceSize=1024m' : 'Unexpected CI build JVM metaspace'
+assert gradle.startParameter.maxWorkerCount == 1 : 'Unexpected CI worker count'
