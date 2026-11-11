@@ -202,9 +202,11 @@ and operational monitoring; external disbursement integration remains outside th
 
 See [security and operations](docs/phase7-security-operations.md) for the RPC matrix, mandatory JWT claims, event/player/POS authorization, native TLS/h2c, separate management HTTP listener, append-only V5 audit/command-actor schema, resource limits, recovery runbooks and exact Phase 8 deployment contract. Earlier phase statements about absent authentication or HTTP describe historical behavior. Application HTTP is disabled; only operational Actuator HTTP is enabled. Phase 7 residual gaps are explicitly listed and deployment readiness is not claimed.
 
-Development builds: PR evidence includes unsigned JVM/Helm test artifacts. Trusted master
-snapshots require GHCR publication plus verified image/chart signatures. Development-only
-exceptions for verified unfixed HIGH findings do not approve production use; CRITICAL,
-fixable HIGH and unreliable scan evidence always block. Tagged releases block all HIGH
-and CRITICAL. See [Phase 8 vulnerability policy](docs/phase8-deployment-ci.md#development-snapshot-vulnerability-policy-2026-11-11)
-for the expiring exception inventory, full scan evidence and signing requirements.
+Development builds: PR evidence includes unsigned JVM/Helm test artifacts, uploaded
+before the vulnerability gate. PRs and master snapshots permit **all HIGH findings
+with warnings**, including fixable and unknown-status findings; CRITICAL findings,
+scanner errors and invalid evidence always block. Official releases block HIGH and
+CRITICAL. Development artifacts are **not production-approved**. Trusted master
+snapshots require GHCR publication plus verified image/chart signatures.
+See [Phase 8 vulnerability policy](docs/phase8-deployment-ci.md#current-development-policy-all-high-findings-warn-2026-11-11)
+for the exact policy, full security evidence, historical CVE inventory and signing requirements.

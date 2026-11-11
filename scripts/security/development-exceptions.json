@@ -6,7 +6,7 @@
     "sha256:e4279e5d4617765c246574388d5808fa588ef6f8c5781b304f7e2aa03f4cc646",
     "sha256:816be3cc630c16359dfa8c0c53806b0109889f8dffebfa22098efaa532cdd2ca"
   ],
-  "basis": "Owner-authorized development-only risk acceptance. Hosted run 43023603194 and 2026-11-11 vendor microdnf --refresh upgrade --assumeno: no updates for these packages. Status affected is NOT independently no-fix evidence. Exact inventory expires in 14 days; adopt supported vendor fixes immediately. Not an exploitability assessment.",
+  "basis": "HISTORICAL AUDIT INVENTORY ONLY. Superseded by owner authorization on 2026-11-11: all HIGH findings warn in development. This file is not loaded by the evaluator or scanner; expiry and matches have no policy effect. Original review: Owner-authorized development-only risk acceptance. Hosted run 43023603194 and 2026-11-11 vendor microdnf --refresh upgrade --assumeno: no updates for these packages. Status affected is NOT independently no-fix evidence. Exact inventory expires in 14 days; adopt supported vendor fixes immediately. Not an exploitability assessment.",
   "findings": [
     {
       "id": "CVE-2026-115506",
@@ -242,5 +242,6 @@
       "source": "redhat",
       "reference": "https://access.redhat.com/security/cve/CVE-2026-119586"
     }
-  ]
+  ],
+  "historicalOnly": true
 }

@@ -68,8 +68,6 @@ jobs:
       - name: Remove only this invocation's cluster
         if: always() && steps.kind.outputs.cluster != ''
         run: kind delete cluster --name "${{ steps.kind.outputs.cluster }}"
-      - name: Image vulnerability gate
-        run: node scripts/security/scan-image.mjs "$VULNERABILITY_POLICY" tiket:kind build/supply-chain
       - name: Package inspectable unsigned CI artifacts
         run: |
           mkdir -p build/unsigned-ci
@@ -80,6 +78,8 @@ jobs:
         with:
           name: unsigned-ci-test-artifacts
           path: build/unsigned-ci/
+      - name: Image vulnerability gate
+        run: node scripts/security/scan-image.mjs "$VULNERABILITY_POLICY" tiket:kind build/supply-chain
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

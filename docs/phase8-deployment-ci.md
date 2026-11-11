@@ -497,7 +497,76 @@ Evidence on this workstation: `build/phase8-hosted.log`,
 measurements, test HTML, kind logs and hosted Trivy JSON. Do not publish raw
 workstation daemon logs or crash reports.
 
-## Development snapshot vulnerability policy (2026-11-11)
+
+## Current development policy: all HIGH findings warn (2026-11-11)
+
+The owner explicitly accepts **all HIGH vulnerabilities for PR CI and development
+snapshots**, including known fixable, unfixed, new, unknown-status, OS and Java/JAR
+findings. HIGH findings are risk warnings, not development gate failures.
+This supersedes the earlier no-fix-only exception policy and its November 25 expiry.
+
+| Evidence | PR / master snapshot | Official tagged release |
+| --- | --- | --- |
+| No HIGH or CRITICAL | PASS | PASS |
+| Any HIGH, no CRITICAL | WARN_HIGH (successful gate) | FAIL |
+| Any CRITICAL, with or without a fix | FAIL | FAIL |
+| Scanner error, missing/malformed evidence | FAIL | FAIL |
+| MEDIUM / LOW | Report | Report |
+
+Both CI and publication use the same `vulnerability-gate.mjs` through
+`scan-image.mjs`. The full unfiltered Trivy 0.67.2 archive scan, image-identity
+check, OS/JAR target validation and scanner error handling remain enabled.
+No CVE suppression, severity downgrade or ignore-unfixed option is used.
+The JSON summary reports actual HIGH/CRITICAL counts, reported fixes/status/source,
+all scanned target categories, the selected gate decision and both development/release
+decisions. Actions emit warnings and a table; original JSON and scanner/image metadata
+remain in `validation-evidence` (publication also retains them in its evidence and
+embeds the summary with image/chart digests in provenance).
+
+The historical `scripts/security/development-exceptions.json` retains the original
+exact CVE/package/version review inventory for audit only. It is marked historical,
+is not loaded by either scanner or evaluator, and cannot affect a gate through
+matches, omissions, dates or expiry. The earlier CVE tables and hosted findings below
+remain evidence; accepting development risk does not resolve those vulnerabilities.
+Fixes should still be adopted when supported packages become available.
+
+Every development snapshot carries:
+**DEVELOPMENT SNAPSHOT — NOT PRODUCTION APPROVED**.
+A HIGH warning can include vulnerabilities with available fixes or uncertain vendor
+status. It does not mean the vulnerability is fixed, nonexploitable or production safe.
+Official releases still fail on every HIGH/CRITICAL and retain the Phase 7 readiness gaps.
+
+The unprivileged PR workflow forces development policy, runs all Gradle/PostgreSQL 18,
+Helm, Docker/UID, policy and kind tests, and receives no protected publishing secrets.
+Release-tag validation rejects development policy. Trusted master snapshots and exact
+SemVer releases retain `needs: validate`, matching caller/ref/channel checks,
+protected environments, minimal token permissions and a second exact-image scan
+before publication. Both OCI image and chart must be signed by digest and verified.
+Missing/incompatible keys, registry failures and signature errors remain failures.
+
+The owner has configured the expected signing key/password secret names in both
+snapshot and release environments; their names were verified without reading values.
+Actual protected signing and GHCR publication remain to be verified after owner merge.
+No merge, release tag, production approval or signed snapshot is implied by green PR CI.
+
+`unsigned-ci-test-artifacts` is packaged and uploaded after successful functional,
+Helm, Docker and kind checks, **before** the vulnerability gate. It contains JVM JARs,
+a Helm package and `UNSIGNED CI TEST ARTIFACTS — NOT A SIGNED GHCR SNAPSHOT` notice.
+It remains inspectable even if a later CRITICAL gate fails. Security evidence uploads
+always run. Downloadable CI artifacts and signed GHCR snapshots are distinct.
+
+Run `node --test scripts/security/*.test.mjs` for policy tests.
+For an image scan:
+`node scripts/security/scan-image.mjs development tiket:kind build/security`.
+Evaluate the same evidence strictly:
+`node scripts/security/vulnerability-gate.mjs release build/security/vulnerabilities.json build/security/release-summary.json`.
+The previous hosted report has 32 HIGH / 0 CRITICAL; under this policy it yields
+development WARN_HIGH and release FAIL. Current counts must come from each fresh scan.
+
+## Earlier no-fix-only development policy (superseded)
+
+The following policy and run results are historical. The all-HIGH development policy
+above supersedes their development blockers and inventory expiry. Release rules remain strict.
 
 This section supersedes historical all-HIGH blocking statements above for PRs and
 development snapshots only. A green PR means functional validation and the development
