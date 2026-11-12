@@ -1,8 +1,4 @@
-# Phase 6 accounting and closure
-
-RaceDayService adds CompleteRaceDay and CloseRaceDay using DayCommand. AccountService
-adds GetAccount, GetWithdrawalQuote, CashOut, ListAccountMovements and GetCashoutReceipt.
-All RPCs are unary in the existing v1 package; prior fields and methods are preserved.
+# Final accounting and cashout
 
 ## Authoritative completion
 
@@ -89,12 +85,6 @@ accounts, deterministic pools, financial children. Independent-transaction tests
 A database-trigger failure on forfeiture insertion verifies rollback of the first movement,
 projection and reservation; outer transaction failures cover day completion and closure.
 
-## Schema and operational limits
-
-V1–V4 are reused unchanged; no migration, withdrawal table or physical-payment ledger is
-needed. Terminal movement uniqueness and durable response storage already exist. Core
-production code is unchanged.
-
 Authoritative reads still replay full account histories, and closure replays all players
 while holding the day lock. Completion aggregates concrete legs in SQL and reads distinct
 pool selections, avoiding coupon expansion, but multiple per-race/pool queries remain.
@@ -103,47 +93,3 @@ validated reconstruction and accounting invariants.
 
 CashOut registers final accounting amounts. A committed receipt does not prove physical
 money was delivered. Real disbursement needs an operational protocol and later integration.
-Default plaintext loopback 127.0.0.1 is preserved. Player IDs and cashier/POS metadata are
-not authenticated identities. Phase 7 must address TLS, authentication, role-based authorization,
-trusted cashier identity, financial audit/operating controls, least-privilege database roles,
-and the actual monetary disbursement protocol before untrusted-network deployment.
-
-## Change inventory
-
-| File | Change |
-| --- | --- |
-| tiket-contracts/.../account.proto | New five-method AccountService, typed balances, quotes, receipts and movement pages |
-| tiket-contracts/.../administration.proto | CompleteRaceDay and CloseRaceDay RPCs |
-| application/AccountApplicationService.kt | Locked authoritative account queries, quote, cashout and receipt reconstruction |
-| application/RaceDayApplicationService.kt | Completion/closure proofs and explicit core transition arguments |
-| persistence/FinalAccountingProof.kt | SQL terminal evidence, pool reconciliation and all-account closure proof |
-| persistence/AccountRepository.kt | Sequence-paginated movement metadata and terminal receipt query |
-| grpc/AccountGrpcService.kt | Thin AccountService adapter |
-| grpc/AdministrationGrpcServices.kt | New lifecycle adapters and WITHDRAWAL_PROHIBITED status correction |
-| Phase6Tests.kt | PostgreSQL 18 generated-client integration, corruption, rollback, restart and contention tests |
-| README.md, backend-architecture.md, backend-persistence.md | Phase 6 behavior and documentation links |
-| phase6-accounting-closure.md | Accounting protocol, evidence, operational limits and this inventory |
-
-Kotlin backend paths above are relative to the existing backend package; contracts paths
-retain pl/umamusume/tiket/api/v1. No build configuration, core implementation, applied
-migration, original coupon, settlement, resolution or print definition was changed.
-
-## Validation
-
-The clean five-module build runs with Java 25, the existing wrapper and
-`--no-configuration-cache --no-build-cache --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process`.
-The PostgreSQL 18 regression reports contain 34 core tests and 100 backend tests:
-zero failures, errors or skipped tests. Backend totals include the existing 85 plus
-15 Phase 6 tests. The clean run executes tests rather than restoring cached results.
-The explicit core test, contracts build, backend test and backend bootJar commands
-also succeed; unchanged outputs in follow-up invocations are up to date.
-
-Phase 6 covers a two-race/two-player generated-gRPC lifecycle with box, wall and normal
-purchases, scratch refunds, all-four-pool settlement, another race voided, completion,
-quotes, cashouts and closure. A second backend context reconstructs both original receipts,
-zero balances, settlement and CLOSED state from the same database. A pending console job
-dispatches after closure. Separate cases exercise all nonterminal race phases, no players,
-no purchases, promotional forfeiture, fully lost zero balances, missing terminal evidence,
-incomplete settlements, projection corruption, exact replay, version conflicts, failure on
-the second terminal insert, outer rollback of completion/closure, and independent-connection
-contention with barriers/latches. Same-key and distinct-key cashout/closure races are covered.

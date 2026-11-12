@@ -38,6 +38,9 @@ class PoolSnapshot(val key: PoolKey, units: Map<AtomicBet, Long>, val validStake
 }
 data class PoolSettlement(val key: PoolKey, val validStake: Money, val winningUnits: Long,
     val distributable: Money, val dividendPerUnit: Money, val distributed: Money, val houseAllocation: Money)
+/** Integer parimutuel dividends. The house retains take, rounding remainder and no-winner pools.
+ * Winning payouts already include any returned stake; callers must not add it again.
+ */
 object PoolSettlementCalculator {
     /** Also usable for reconciled aggregate stake/unit totals without materializing individual legs. */
     fun calculate(key: PoolKey, stake: Money, winningUnits: Long, take: TakeRate,

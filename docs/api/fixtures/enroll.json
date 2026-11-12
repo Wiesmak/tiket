@@ -1,0 +1,8 @@
+{
+  "race_day_id": "10000000-0000-0000-0000-000000000001",
+  "player_id": "30000000-0000-0000-0000-000000000001",
+  "opening_paid": "1000",
+  "opening_promotional": "100",
+  "expected_day_version": "1",
+  "idempotency_key": "demo-enroll-1"
+}

@@ -143,6 +143,9 @@ object AccountProjector {
     }
 }
 data class WithdrawalQuote(val balance: Money, val unlocked: Money, val withdrawable: Money, val forfeitable: Money)
+/** Single-balance promotional eligibility. Refunded stakes do not unlock promotion.
+ * A quote reserves nothing; cashout must be committed atomically and does not disburse money.
+ */
 object WithdrawalPolicy {
     fun hypothetical(account: AccountSnapshot): WithdrawalQuote {
         val unlocked = minOf(account.entry.openingFreebet, account.qualifyingTurnover)

@@ -1,0 +1,5 @@
+{
+  "race_day_id": "10000000-0000-0000-0000-000000000001",
+  "expected_version": "4",
+  "idempotency_key": "demo-close-day-1"
+}

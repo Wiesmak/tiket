@@ -33,7 +33,7 @@ A scratch invalidates a proposed result. Scratches never remove roster records.
 
 Use RaceDayLifecyclePolicy.openBetting with all race states to enforce maximumOpenRaces (default 1).
 RaceLifecyclePolicy supplies individual race transition checks; event constraints must also be enforced.
-Enrollment/deposit/definition policy predicates are intended for the future application's command handlers.
+Enrollment/deposit/definition policy predicates are used by backend command handlers.
 
 ## Atomic application
 

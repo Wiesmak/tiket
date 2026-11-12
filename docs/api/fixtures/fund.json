@@ -1,0 +1,8 @@
+{
+  "race_day_id": "10000000-0000-0000-0000-000000000001",
+  "player_id": "30000000-0000-0000-0000-000000000001",
+  "additional_paid": "100",
+  "additional_promotional": "0",
+  "expected_account_version": "0",
+  "idempotency_key": "demo-fund-1"
+}

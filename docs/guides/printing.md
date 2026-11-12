@@ -8,8 +8,13 @@ financial logic or gRPC is present in the adapter.
 
 ## Raster receipt
 
-`TicketRasterRenderer` lays out all 18 frozen print fields using Java logical
-Monospaced fonts, with bold heading, reprint marker and total. Dates use
+`TicketRasterRenderer` renders the current Polish receipt layout: a shortened ticket ID
+(last 16 UUID hex digits grouped in fours), centered 200-pixel logo, course/day,
+POS formatted as UMA plus three digits, cashier, purchase/print times, race,
+selection, quantities, unit price, total and community footer. Bet labels are
+ZWC (WIN), PDK (QUINELLA), DWJ (EXACTA) and TRJ (TRIFECTA).
+The renderer selects DejaVu Sans Mono, Lucida Console or Consolas when installed,
+falling back to Java Monospaced, and paints bold monochrome text. Dates use
 `yyyy-MM-dd HH:mm` with Locale.ROOT. It wraps by measured character width,
 including long identifiers, selections and amounts. Control and format
 characters become spaces. It never expands bets or recalculates stakes.
@@ -29,10 +34,10 @@ Do not raise limits without reviewing transfer time and lease duration.
 `RasterBitImageWrapper`. Default bands are 128 rows, always 384 pixels
 (48 bytes per raster row). Commands are left justification from the wrapper
 (`ESC a 48`), `GS v 0` in normal size with band width/height and bitmap data,
-optional vendor commands, then `ESC d n` for final feed.
+blank raster rows for final paper feed (24 rows per configured feed line).
 No feeds occur between bands. No native receipt text, fonts, barcode, QR,
 initialization or cut commands are sent.
-Coffee's `feed()` emits style commands, so final feed is encoded directly.
+No native ESC d feed command is sent. Optional density/speed commands precede raster bands.
 
 The optional vendor commands are:
 `1D 28 4B 02 00 31 density` and `1D 28 4B 02 00 32 speed`.
@@ -161,11 +166,10 @@ Run only with an explicitly attached printer and paper loaded:
 
 On Linux use `./gradlew` and `-PserialSmokePort=/dev/ttyUSB0`.
 This task is never wired into build/check. It enumerates ports, opens only
-the supplied port with 9600/8N1/5-second write timeout, prints a small bordered
-384-pixel diagnostic, a representative TicketPrintData fixture and a REPRINT.
-All are clearly marked diagnostics, not purchased tickets. It reports stream
+the supplied port with 9600/8N1/5-second write timeout, prints one representative TicketPrintData diagnostic receipt.
+It is clearly marked as a diagnostic, not a purchased ticket. It reports stream
 transmission results and closes each session. Visually inspect width, band
-joins, amounts, selection and reprint label. Hardware output has not been
+joins, amounts and selection. Hardware output has not been
 verified by automated tests. For normal purchased tickets use the durable
 backend outbox and existing reprint operation; never bypass it.
 
@@ -202,6 +206,55 @@ device. This backend is intended for a local JVM on the attached hardware.
 No privileged containers, host-device mounts or Kubernetes USB configuration
 are added. Hardware-attached container deployment requires a separate review
 of device ownership, native libraries, scheduling and platform permissions.
-Standalone release-JAR packaging inventory is deferred to a separate follow-up;
-protected CI, publication, signing and security policy files are untouched.
-This document covers implementation only; Phase 9 remains pending.
+Standalone serial JAR inclusion in published artifact bundles remains a packaging limitation.
+
+Consecutive physical jobs have not been established as reliable by automated tests. Validate your printer, driver, baud rate and receipt sizes before operational use. Successful dispatch completes immediately after transmission and owner/lease checks; it does not wait for lease expiry.
+
+To customize layout, change TicketRasterRenderer and its renderer tests; the adapter receives frozen print data and must not recalculate financial values. Keep 384-pixel width and height/character budgets.
+
+## Console and outbox
+
+ConsoleTicketPrinter writes one readable ticket to stdout, checks stream errors and flushes.
+Dispatched means stdout accepted the data. There is no physical printing guarantee.
+
+## V4 outbox and worker
+
+V4__printing_outbox.sql leaves V1–V3 unchanged. print_job stores UUID, coupon FK,
+ORIGINAL/REPRINT type, status, enqueue/next attempt timestamps, count, owner UUID,
+lease expiry and last error. A partial unique index permits one ORIGINAL per coupon.
+print_attempt stores a distinct UUID, job FK, start/completion timestamps, result and error.
+Indexes support eligible-job scans and attempt history. Reprints use durable command
+idempotency; the committed command acknowledgement identifies the single enqueued job.
+
+Transitions: PENDING -> CLAIMED -> DISPATCHED, RETRYING or PERMANENTLY_FAILED.
+RETRYING -> CLAIMED when due. Expired CLAIMED jobs are recovered with a new owner and
+attempt; old STARTED attempts become LEASE_EXPIRED. Stale owners cannot complete a
+reclaimed job. Expiry at the attempt limit permanently fails the job.
+
+The worker uses SELECT FOR UPDATE SKIP LOCKED and commits claim/STARTED attempt before
+loading printable data and calling TicketPrinter outside transactions. Completion uses a
+separate short transaction. No financial locks are held during stdout. Financial commit is
+required before any job is visible to the worker. Printer failures never refund or reverse bets.
+
+Configuration: tiket.printing.enabled (default true), poll-millis (1000),
+max-attempts (5), lease-seconds (60). Each poll handles at most ten jobs. Retry delay is
+min(300, 2^attempt-count) seconds. Permanent failures stop immediately. Disable scheduling
+with tiket.printing.enabled=false for deterministic tests or manual processing.
+
+Dispatch is at least once. A crash after stdout succeeds and before completion commits can
+cause duplicate output after lease recovery. Attempts have distinct identities for diagnosis.
+Choose a lease longer than expected printer duration; no physical exactly-once protocol exists.
+
+GetPrintStatus reports current job status/count and latest attempt details. ReprintCoupon
+requires an existing committed coupon and an idempotency key; it creates a distinct REPRINT
+job without any account/pool mutation. Replaying it returns its original enqueue acknowledgement;
+query status separately for current progress.
+
+## Receipt identification limitation
+
+The serial layout currently does not render `isReprint`, `printAttemptId` or a separate
+combination count. The console adapter prints these fields. Serial reprints therefore
+lack a visible REPRINT label; operators must use outbox history and reconcile uncertain
+paper output before requesting another copy. This is a documented source limitation,
+not a new acknowledgement or receipt-safety guarantee. The full UUID remains in the
+database/API; the shortened printed identifier is presentation only.
