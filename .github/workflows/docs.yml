@@ -29,6 +29,7 @@ jobs:
           npm ci --prefix scripts
       - name: Generate API documentation
         run: |
+          chmod +x gradlew
           bash scripts/ci-gradle.sh :tiket-contracts:generateProto :dokkaGenerate
           .venv-docs/bin/python scripts/docs.py proto --check
       - name: Validate and assemble static site
