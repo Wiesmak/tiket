@@ -10,6 +10,7 @@ enum class ErrorCode {
 }
 data class DomainError(val code: ErrorCode, val detail: String)
 class DomainException(val error: DomainError) : IllegalArgumentException(error.toString())
+/** Explicit policy outcome. Rejected decisions carry a stable error code; adapters choose transport statuses. */
 sealed interface Decision<out T> {
     data class Accepted<T>(val value: T) : Decision<T>
     data class Rejected(val error: DomainError) : Decision<Nothing>

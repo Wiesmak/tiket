@@ -2,6 +2,7 @@ package pl.umamusume.tiket.core.money
 import java.math.BigInteger
 import pl.umamusume.tiket.core.validation.*
 
+/** Nonnegative integer currency units. Arithmetic rejects overflow/underflow; no decimal scale is implied. */
 @JvmInline value class Money(val amount: Long) : Comparable<Money> {
     init { ensure(amount >= 0, ErrorCode.INVALID_STAKE, "negative money: $amount") }
     operator fun plus(other: Money) = Money(Math.addExact(amount, other.amount))

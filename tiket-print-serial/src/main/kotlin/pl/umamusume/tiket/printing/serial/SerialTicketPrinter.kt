@@ -3,6 +3,10 @@ package pl.umamusume.tiket.printing.serial
 import pl.umamusume.tiket.printing.*
 import java.util.concurrent.locks.ReentrantLock
 
+/** Local raster-only serial adapter with fail-fast exclusivity per configured physical port.
+ * Independent ports may run concurrently. Success confirms stream transmission, not paper output.
+ * Use one instance per process and avoid competing hosts on the same device.
+ */
 class SerialTicketPrinter(
     val routing: SerialRoutes,
     private val provider: SerialPortProvider = JSerialCommPortProvider(),

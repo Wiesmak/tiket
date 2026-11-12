@@ -1,0 +1,61 @@
+{
+  "definition": {
+    "race_day_id": "10000000-0000-0000-0000-000000000001",
+    "event_date": "2026-11-12",
+    "display_number": 1,
+    "currency": "PLN",
+    "time_zone": "Europe/Warsaw",
+    "rules_version": "1",
+    "maximum_coupon_legs": 10000,
+    "maximum_open_races": 1,
+    "no_winner_policy": "HOUSE_RETAINS_POOL",
+    "races": [
+      {
+        "race_id": "20000000-0000-0000-0000-000000000001",
+        "number": 1,
+        "racecourse_name": "Example course",
+        "title": "Demonstration",
+        "runners": [
+          {
+            "horse_id": "50000000-0000-0000-0000-000000000002",
+            "program_number": "2",
+            "display_name": "Runner 2"
+          },
+          {
+            "horse_id": "50000000-0000-0000-0000-000000000003",
+            "program_number": "3",
+            "display_name": "Runner 3"
+          },
+          {
+            "horse_id": "50000000-0000-0000-0000-000000000004",
+            "program_number": "4",
+            "display_name": "Runner 4"
+          }
+        ],
+        "pools": [
+          {
+            "type": "WIN",
+            "unit_stake": "10",
+            "take_basis_points": 1500
+          },
+          {
+            "type": "QUINELLA",
+            "unit_stake": "10",
+            "take_basis_points": 1500
+          },
+          {
+            "type": "EXACTA",
+            "unit_stake": "10",
+            "take_basis_points": 1500
+          },
+          {
+            "type": "TRIFECTA",
+            "unit_stake": "10",
+            "take_basis_points": 1500
+          }
+        ]
+      }
+    ]
+  },
+  "idempotency_key": "demo-create-1"
+}

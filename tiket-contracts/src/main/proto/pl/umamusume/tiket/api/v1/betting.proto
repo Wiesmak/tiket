@@ -53,14 +53,19 @@ message PrintStatus {
 }
 message ReprintCouponRequest { string race_day_id = 1; string coupon_id = 2; string idempotency_key = 3; }
 service BettingService {
+  // Quote pricing and canonical expansion without reserving funds.
  rpc QuoteCoupon(QuoteCouponRequest) returns (QuoteCouponResponse);
+  // Revalidate confirmation/versions and atomically buy all legs and enqueue printing.
  rpc PurchaseCoupon(PurchaseCouponRequest) returns (PurchaseCouponResponse);
+  // Get Coupon for authorized resources.
  rpc GetCoupon(CouponQuery) returns (CouponInformation);
+  // List Player Coupons for authorized resources.
  rpc ListPlayerCoupons(ListPlayerCouponsRequest) returns (CouponList);
 }
-// Development only: unauthenticated; keep the server bound to loopback.
+// Authenticated cashier operations; event, player and POS grants are checked.
 service PrintingService {
+  // Read current dispatch state; no physical acknowledgement is implied.
  rpc GetPrintStatus(PrintStatusQuery) returns (PrintStatus);
+  // Enqueue a separate REPRINT job without financial effects.
  rpc ReprintCoupon(ReprintCouponRequest) returns (PrintStatus);
 }
-

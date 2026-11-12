@@ -49,6 +49,9 @@ class ExpansionResult internal constructor(val selection: CouponSelection, bets:
     val bets = frozen(bets)
     val combinations: Int get() = bets.size
 }
+/** Expands ordinary, wall and box selections into deterministic, deduplicated atomic bets.
+ * Counts combinations before allocation and freezes purchase-time eligibility in the result.
+ */
 object SelectionExpander {
     fun expand(type: BetType, selection: CouponSelection, roster: Set<HorseId>,
                eligible: Set<HorseId> = roster, maximumLegs: Int = 10000): Decision<ExpansionResult> = decide {

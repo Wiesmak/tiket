@@ -56,6 +56,9 @@ object FinancialReconciliation {
         ensure(original == refunds + payouts + house, ErrorCode.INCONSISTENT_POOL, "financial conservation failed")
     }
 }
+/** Plans all four pools from complete authoritative history and a verified normal result.
+ * Integrations must atomically compare versions and persist every outcome, credit and resulting state.
+ */
 object RaceSettlementPlanner {
     fun plan(id: SettlementId, race: RaceDefinition, state: RaceState, rules: Map<BetType,PoolRules>,
              snapshots: Map<PoolKey,PoolSnapshot>, coupons: List<Coupon>,

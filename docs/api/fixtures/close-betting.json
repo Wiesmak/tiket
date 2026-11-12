@@ -1,0 +1,7 @@
+{
+  "race_day_id": "10000000-0000-0000-0000-000000000001",
+  "race_id": "20000000-0000-0000-0000-000000000001",
+  "expected_day_version": "2",
+  "expected_race_version": "1",
+  "idempotency_key": "demo-close-betting-1"
+}

@@ -46,3 +46,6 @@ bin/
 
 node_modules/
 !scripts/package-lock.json
+/.venv-docs/
+/site/
+/local-db.env

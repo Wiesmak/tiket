@@ -1,0 +1,24 @@
+{
+  "race_day_id": "10000000-0000-0000-0000-000000000001",
+  "race_id": "20000000-0000-0000-0000-000000000001",
+  "player_id": "30000000-0000-0000-0000-000000000001",
+  "coupon_id": "40000000-0000-0000-0000-000000000001",
+  "bet_type": "EXACTA",
+  "selection": {
+    "box": {
+      "horse_ids": [
+        "50000000-0000-0000-0000-000000000002",
+        "50000000-0000-0000-0000-000000000003",
+        "50000000-0000-0000-0000-000000000004"
+      ]
+    }
+  },
+  "units_per_combination": "2",
+  "quote_confirmation": "REPLACE_WITH_QUOTE_CONFIRMATION",
+  "expected_day_version": "2",
+  "expected_race_version": "1",
+  "expected_account_version": "1",
+  "point_of_sale_number": 1,
+  "cashier_identifier": "demo-cashier",
+  "idempotency_key": "demo-purchase-1"
+}

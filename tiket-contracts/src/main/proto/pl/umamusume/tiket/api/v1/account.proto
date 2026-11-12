@@ -36,9 +36,14 @@ message FinancialMovement {
 }
 message AccountMovements { repeated FinancialMovement movements = 1; optional int64 next_sequence = 2; }
 service AccountService {
+  // Get Account for authorized resources.
  rpc GetAccount(AccountQuery) returns (AccountInformation);
+  // Get Withdrawal Quote for authorized resources.
  rpc GetWithdrawalQuote(AccountQuery) returns (WithdrawalQuoteInformation);
+  // Record withdrawal and forfeiture; no money is disbursed.
  rpc CashOut(CashOutRequest) returns (CashoutReceipt);
+  // List Account Movements for authorized resources.
  rpc ListAccountMovements(AccountMovementsRequest) returns (AccountMovements);
+  // Get Cashout Receipt for authorized resources.
  rpc GetCashoutReceipt(AccountQuery) returns (CashoutReceipt);
 }

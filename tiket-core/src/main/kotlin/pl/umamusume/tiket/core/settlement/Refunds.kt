@@ -31,6 +31,9 @@ class RefundPlan internal constructor(val expectedRaceVersion: Long, val resulti
     /** Positive amounts to subtract from qualifying turnover. */
     val turnoverReductions get() = playerTotals
 }
+/** Plans leg-level refunds from frozen purchased legs and existing terminal resolutions.
+ * Previously refunded legs are skipped. Persist credits, reductions and race version atomically.
+ */
 object RefundPlanner {
     fun plan(race: RaceDefinition, state: RaceState, reason: RefundReason, coupons: List<Coupon>,
              existing: Map<BetLegId,LegResolution> = emptyMap()): Decision<RefundPlan> = decide {

@@ -63,3 +63,5 @@ WithdrawalPolicy.hypothetical can compute eligibility at any stage.
 WithdrawalPolicy.quote and AccountProjector.cashOut require COMPLETED.
 Cashout records distinct final withdrawal and promotional forfeiture movements and leaves zero balance.
 No further ordinary movements are accepted after cashout.
+
+CashOut records accounting only. Operators must reconcile actual disbursement separately.

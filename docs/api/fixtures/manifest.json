@@ -1,0 +1,74 @@
+[
+  {
+    "file": "create.json",
+    "method": "pl.umamusume.tiket.api.v1.RaceDayService/CreateRaceDay"
+  },
+  {
+    "file": "publish.json",
+    "method": "pl.umamusume.tiket.api.v1.RaceDayService/PublishRaceDay"
+  },
+  {
+    "file": "enroll.json",
+    "method": "pl.umamusume.tiket.api.v1.EnrollmentService/EnrollPlayer"
+  },
+  {
+    "file": "fund.json",
+    "method": "pl.umamusume.tiket.api.v1.EnrollmentService/AddOpeningFunding"
+  },
+  {
+    "file": "start.json",
+    "method": "pl.umamusume.tiket.api.v1.RaceDayService/StartRaceDay"
+  },
+  {
+    "file": "open.json",
+    "method": "pl.umamusume.tiket.api.v1.RaceService/OpenBetting"
+  },
+  {
+    "file": "quote.json",
+    "method": "pl.umamusume.tiket.api.v1.BettingService/QuoteCoupon"
+  },
+  {
+    "file": "purchase.json",
+    "method": "pl.umamusume.tiket.api.v1.BettingService/PurchaseCoupon"
+  },
+  {
+    "file": "print.json",
+    "method": "pl.umamusume.tiket.api.v1.PrintingService/GetPrintStatus"
+  },
+  {
+    "file": "close-betting.json",
+    "method": "pl.umamusume.tiket.api.v1.RaceService/CloseBetting"
+  },
+  {
+    "file": "result.json",
+    "method": "pl.umamusume.tiket.api.v1.ResultService/SubmitResult"
+  },
+  {
+    "file": "verify.json",
+    "method": "pl.umamusume.tiket.api.v1.ResultService/VerifyResult"
+  },
+  {
+    "file": "settle.json",
+    "method": "pl.umamusume.tiket.api.v1.ResultService/SettleRace"
+  },
+  {
+    "file": "finalize.json",
+    "method": "pl.umamusume.tiket.api.v1.RaceDayService/FinalizeRaceDay"
+  },
+  {
+    "file": "complete.json",
+    "method": "pl.umamusume.tiket.api.v1.RaceDayService/CompleteRaceDay"
+  },
+  {
+    "file": "withdrawal.json",
+    "method": "pl.umamusume.tiket.api.v1.AccountService/GetWithdrawalQuote"
+  },
+  {
+    "file": "cashout.json",
+    "method": "pl.umamusume.tiket.api.v1.AccountService/CashOut"
+  },
+  {
+    "file": "close-day.json",
+    "method": "pl.umamusume.tiket.api.v1.RaceDayService/CloseRaceDay"
+  }
+]

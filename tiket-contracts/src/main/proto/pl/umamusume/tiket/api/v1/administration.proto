@@ -46,27 +46,45 @@ message EnrollmentInformation {
 }
 message PlayerList { repeated EnrollmentInformation players = 1; }
 service RaceDayService {
+  // Create the complete immutable DRAFT definition.
  rpc CreateRaceDay(CreateRaceDayRequest) returns (DayAcknowledgement);
+  // Get Race Day for authorized resources.
  rpc GetRaceDay(DayQuery) returns (RaceDayInformation);
+  // Freeze definition and enter READY.
  rpc PublishRaceDay(DayCommand) returns (DayAcknowledgement);
+  // Enter RUNNING, freezing enrollment and funding.
  rpc StartRaceDay(DayCommand) returns (DayAcknowledgement);
+  // Enter FINALIZING once betting is closed.
  rpc FinalizeRaceDay(DayCommand) returns (DayAcknowledgement);
+  // Prove terminal races/pools/legs and enter COMPLETED.
  rpc CompleteRaceDay(DayCommand) returns (DayAcknowledgement);
+  // Prove terminal cashouts and enter CLOSED.
  rpc CloseRaceDay(DayCommand) returns (DayAcknowledgement);
 }
 service RaceService {
+  // Refund active legs containing the scratched horse before verification.
  rpc ScratchHorse(ScratchHorseRequest) returns (RefundAcknowledgement);
+  // Refund all remaining active legs before verification.
  rpc VoidRace(RaceCommand) returns (RefundAcknowledgement);
+  // List Races for authorized resources.
  rpc ListRaces(DayQuery) returns (RaceList);
+  // Get Race for authorized resources.
  rpc GetRace(RaceQuery) returns (RaceInformation);
+  // Get Race Status for authorized resources.
  rpc GetRaceStatus(RaceQuery) returns (RaceAcknowledgement);
+  // Open a scheduled race within the event-wide limit.
  rpc OpenBetting(RaceCommand) returns (RaceAcknowledgement);
+  // Close betting before proposals.
  rpc CloseBetting(RaceCommand) returns (RaceAcknowledgement);
 }
 service EnrollmentService {
+  // Enroll with opening funds before start.
  rpc EnrollPlayer(EnrollPlayerRequest) returns (EnrollmentInformation);
+  // Append opening funding before start and account activity.
  rpc AddOpeningFunding(AddOpeningFundingRequest) returns (EnrollmentInformation);
+  // Get Enrollment for authorized resources.
  rpc GetEnrollment(EnrollmentQuery) returns (EnrollmentInformation);
+  // List Players for authorized resources.
  rpc ListPlayers(DayQuery) returns (PlayerList);
 }
 
@@ -105,11 +123,18 @@ message RaceLegResolutionsRequest { RaceQuery race = 1; int32 page_size = 2; int
 message TerminalLegResolution { string coupon_id = 1; int32 ordinal = 2; TerminalLegOutcome outcome = 3; int64 amount = 4; string settlement_id = 5; }
 message RaceLegResolutions { repeated TerminalLegResolution resolutions = 1; optional int32 next_offset = 2; }
 service ResultService {
+  // Propose a normal ordered result after betting closes.
  rpc SubmitResult(SubmitResultRequest) returns (ResultAcknowledgement);
+  // Verify the selected normal proposal with three or more eligible finishers.
  rpc VerifyResult(VerifyResultRequest) returns (ResultAcknowledgement);
+  // Get Result for authorized resources.
  rpc GetResult(RaceQuery) returns (ResultAcknowledgement);
+  // List Result Revisions for authorized resources.
  rpc ListResultRevisions(ResultRevisionsRequest) returns (ResultRevisions);
+  // Atomically settle four pools from a verified normal result.
  rpc SettleRace(SettleRaceRequest) returns (SettlementInformation);
+  // Get Settlement for authorized resources.
  rpc GetSettlement(SettlementQuery) returns (SettlementInformation);
+  // List Race Leg Resolutions for authorized resources.
  rpc ListRaceLegResolutions(RaceLegResolutionsRequest) returns (RaceLegResolutions);
 }

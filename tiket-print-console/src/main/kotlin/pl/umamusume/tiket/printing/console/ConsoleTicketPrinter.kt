@@ -4,6 +4,7 @@ import pl.umamusume.tiket.printing.*
 import java.io.PrintStream
 import java.time.format.DateTimeFormatter
 
+/** Development/log dispatch. Success confirms only a flushed stream, never physical receipt acknowledgement. */
 class ConsoleTicketPrinter(private val output: PrintStream = System.out) : TicketPrinter {
     override fun print(data: TicketPrintData): PrintResult {
         val format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
@@ -36,4 +37,3 @@ class ConsoleTicketPrinter(private val output: PrintStream = System.out) : Ticke
         return PrintResult.Dispatched
     }
 }
-

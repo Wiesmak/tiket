@@ -6,6 +6,7 @@ option java_multiple_files = true;
 option java_outer_classname = "SystemProto";
 
 service SystemService {
+  // Public process/API ping without domain or database side effects.
   rpc Ping(PingRequest) returns (PingResponse);
 }
 

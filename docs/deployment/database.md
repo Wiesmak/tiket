@@ -1,6 +1,72 @@
-# Backend persistence
+# Database and migrations
 
-Phase 2 uses explicit Spring JDBC and PostgreSQL. V1 is preserved; V2 adds the domain schema.
+## External PostgreSQL / CNPG and migration control
+
+CNPG is externally provisioned. Set database.url to an ordinary JDBC URL, normally using
+<cluster>-rw:5432/tiket. Include connectTimeout/socketTimeout and production
+sslmode=verify-full. database.tlsSecret mounts the CA and optional client certificate/key
+at /run/db. Specify sslrootcert, sslcert and sslkey paths explicitly in the JDBC URL.
+PostgreSQL JDBC client-key format must match the driver's requirements (PKCS#8/PKCS#12);
+a Kubernetes TLS Secret's arbitrary PEM key is not automatically converted.
+verify-full requires certificate SANs matching the Service DNS name.
+
+database.runtimeSecret and migrationSecret each reference an externally created Secret
+with username/password keys. No password is rendered into ConfigMaps. Limit Secret
+read access, protect mounted keys and use controlled restarts for rotation.
+Configure DB_POOL_SIZE/DB_CONNECTION_TIMEOUT through database values.
+
+The migrator owns the database/schema and Flyway objects. The runtime role gets schema
+USAGE and needed SELECT/INSERT/UPDATE/DELETE on ordinary tables plus sequence permissions,
+but no CREATE/schema ownership. Restrict operational_audit/command_actor to SELECT/INSERT.
+Set default privileges as migrator before migration, then revoke mutation privileges on
+the audit tables after migration. Historical V1-V5 checksums remain unchanged.
+Do not use a superuser in production.
+
+The executable argument `--tiket.migrate-only` runs Flyway directly without a Spring context,
+gRPC, management or workers. It requires the migration DB environment and validates checksums.
+Normal chart replicas set SPRING_FLYWAY_ENABLED=false and use only runtime credentials.
+With migration.mode=hook, one pre-install/pre-upgrade Job gates Helm's Deployment update.
+A failed Job aborts that Helm operation; old application replicas can continue serving.
+Do not deploy new-schema code by bypassing the migration gate.
+
+For GitOps use migration.mode=explicit, a unique migration.revision for the cycle, and
+an orchestrator dependency/sync wave that waits for Job completion before applying the
+Deployment. Rendering an ordinary Job alone does not gate a Deployment. After executing
+that Job, disable migration.enabled in the rollout phase to avoid a second migration path.
+Choose either explicit or Helm-hook orchestration for each deployment cycle.
+No automatic database rollback is promised. Back up before upgrades and test restoration.
+
+An explicit ordered deployment can use the following equivalent steps (supply the
+intended kubeconfig and reviewed production values; stop on any nonzero exit):
+
+```sh
+set -euo pipefail
+helm template tiket charts/tiket -f production.yaml \
+  --set migration.mode=explicit --set migration.revision=upgrade-20261111 \
+  --show-only templates/migration.yaml > migration.yaml
+migration_job=$(kubectl --kubeconfig "$TIKET_KUBECONFIG" apply -f migration.yaml -o name)
+kubectl --kubeconfig "$TIKET_KUBECONFIG" wait --for=condition=complete "$migration_job" --timeout=5m
+helm upgrade --install tiket charts/tiket -f production.yaml \
+  --set migration.enabled=false --kubeconfig "$TIKET_KUBECONFIG" --wait --timeout=10m
+```
+
+Use a new revision for each GitOps migration cycle and retain Job evidence. A failed
+wait must prevent the final command. The normal Helm-hook path does not run these
+explicit steps.
+
+CNPG operator failover, certificate rotation, reconciliation and storage HA are unverified.
+A standard PostgreSQL restart/outage test is not CNPG operator validation.
+
+
+## Migration reference
+
+| Migration | Purpose |
+| --- | --- |
+| V1 | Foundation/Flyway baseline |
+| V2 | Domain, ledger, pools, coupons and financial integrity |
+| V3 | Ordered administration and pre-start funding adjustments |
+| V4 | Print jobs/attempts and query indexes |
+| V5 | Operational audit and command actor binding |
 
 Relationships: race_day -> race -> race_runner, race_state, race_result -> race_result_finisher;
 race -> pool_rules -> pool_state -> pool_selection_units;
@@ -30,7 +96,7 @@ All compound writes run in Spring transactions. Application services must wrap c
 PersistenceTransactions.required: purchase writes header, legs, debit, pool projections and
 idempotency; refunds write terminal resolutions, credits, pool reductions and state; settlement
 writes four pools, outcomes, credits and state; cashout writes both terminal movements and projection.
-Phase 3 application services compose the administrative operations described below.
+Application services compose the storage operations described below.
 
 Lock order: day state when event-wide coordination is needed, then race state, accounts sorted
 by UUID text, pools sorted by bet-type name, then subordinate records. Lock helpers require an
@@ -54,21 +120,13 @@ Scope, operation and key are caller-supplied stable identifiers; fingerprints mu
 validated request fields, including POS/cashier metadata where relevant.
 
 Database checks enforce basic ranges, uniqueness, roster ownership and parent context. Core and
-future application services enforce lifecycle authorization, selection expansion, complete four-pool
+application services enforce lifecycle authorization, selection expansion, complete four-pool
 settlement, legitimate financial plans and final cashout eligibility. Repository methods are storage
 primitives, not permission checks. Setup insertion does not authorize late enrollment.
 
 Indexes cover parent and ordered history lookups. Aggregate loads use multiple queries and should
 run under locks or repeatable-read for consistency. Ledger replay is currently unbounded. Large
 race coupon scans and full pool replacement may need batching in later measured optimizations.
-Never remove historical purchased legs to optimize aggregates.
-
-Run tests with Docker and Java 25:
-gradlew.bat clean build --no-configuration-cache --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process
-gradlew.bat :tiket-backend:test --no-configuration-cache
-gradlew.bat :tiket-backend:bootJar --no-configuration-cache
-Testcontainers uses ephemeral ports and isolated databases. Flyway validates checksums on startup;
-never edit applied migrations. New changes require a new versioned migration.
 
 ## Mapping reference
 
@@ -95,61 +153,3 @@ never edit applied migrations. New changes require a new versioned migration.
 Deferred database checks reject incomplete coupon headers and settlements at commit. A result revision
 can only change by verifying an otherwise identical proposal. Payout inserts must reference the exact
 matching winnings movement and won resolution. Normal financial formulas remain in core.
-
-## Validation
-
-The implementation was exercised against Docker PostgreSQL 18 using Spring Boot application contexts.
-The suite includes fresh migration, V1 upgrade, repeated validation, missing migration detection,
-four coupon variants, scratch stability, intentionally corrupted data, ledger reconciliation and
-cashout, four pool settlements, payout deduplication, terminal resolutions, cross-day reads, version
-conflicts, independent-transaction contention and complete rollback. Transport tests explicitly use
-a database-free configuration; the PostgreSQL foundation test still exercises the full application.
-Phase 3 can compose these repositories inside PersistenceTransactions.required after acquiring
-PersistenceLocks in the documented order, call core policies, and store their plans. Phase 3 implements enrollment and administration; Phase 4 implements purchases;
-Phase 5 implements refunds, results and settlement.
-
-## V3 administration support
-
-V3 preserves V1/V2 and immutable player_entry. Effective opening funds are original amounts plus
-append-only opening_funding_adjustment rows. account_balance.opening_version advances with the account
-version before activity; AccountSnapshot.reconstitute receives this version, including after restart.
-Account append validation also retains openingVersion. No funding movements or extra wallets are created.
-Triggers reject late/activity funding and reconcile adjustment sequences/projections at commit.
-Race ordinal preserves planned order; existing V2 races backfill by number. New definitions store list indices.
-The Phase 3 application services now compose the persistence primitives; see [administration](phase3-administration.md).
-
-## V4 betting and printing
-
-Purchases now compose coupon, batched legs, original eligibility, account movement/projection,
-incremental target pool UPSERTs, original print job and exact command acknowledgement in one transaction.
-PoolRepository.acceptPurchase takes only a core PurchasePlan and reconciles checked stake/unit totals.
-V4 adds print_job and print_attempt, a unique original-job index, pending/history indexes and a
-player coupon index. Claim leases use SKIP LOCKED; owner checks prevent stale completion.
-Printing dispatch occurs outside database transactions, with bounded retry and at-least-once recovery.
-See [Phase 4](phase4-betting-printing.md) for schema fields, state transitions and security limits.
-
-## Phase 5 financial orchestration
-
-V1–V4 are unchanged and no V5 is required. Refunds batch terminal resolutions and use checked
-PoolRepository.applyRefundDelta to update only affected pool/selection rows and remove zero counts.
-The complete remaining active-leg aggregates are reconciled before and after reductions.
-Verification updates race_state before ResultRepository.verify inside one transaction; final reconstruction
-checks both statuses. Settlement inserts its header/four pools, outcomes, grouped account movements,
-payouts and final race state in foreign-key-compatible order. AccountSnapshot still replays full history.
-No historical coupon or print row changes. See [Phase 5](phase5-refunds-settlement.md) for sequencing,
-conservation, deterministic locks, replay, corruption detection, concurrency and rollback tests.
-
-## Phase 6 final accounting
-
-AccountApplicationService coordinates validated ledger reads, core withdrawal quotes and
-atomic two-movement cashout. FinalAccountingProof establishes terminal race/pool/leg evidence
-for completion and replays all enrolled accounts for closure. AccountGrpcService exposes the
-new typed v1 account API. RaceDayApplicationService retains day locks through proof and update.
-V1–V4 are reused without a new migration; cashout increments the account version once.
-See [Phase 6](phase6-accounting-closure.md) for proofs, transactions, receipts, performance
-tradeoffs and the boundary between registered cashout and actual disbursement.
-
-
-## Phase 7 security and operations increment
-
-See [security and operations](phase7-security-operations.md) for the RPC matrix, mandatory JWT claims, event/player/POS authorization, native TLS/h2c, separate management HTTP listener, append-only V5 audit/command-actor schema, resource limits, recovery runbooks and exact Phase 8 deployment contract. Earlier phase statements about absent authentication or HTTP describe historical behavior. Application HTTP is disabled; only operational Actuator HTTP is enabled. Phase 7 residual gaps are explicitly listed and deployment readiness is not claimed.

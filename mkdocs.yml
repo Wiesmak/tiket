@@ -1,0 +1,45 @@
+site_name: Tiket
+site_description: Parimutuel betting backend and Kotlin libraries
+repo_url: https://github.com/Wiesmak/tiket
+theme:
+  name: readthedocs
+  highlightjs: false
+plugins: [search]
+validation:
+  nav:
+    omitted_files: warn
+  links:
+    not_found: warn
+    anchors: warn
+nav:
+  - Home: index.md
+  - Getting started: getting-started/local-development.md
+  - Concepts:
+      - Architecture: concepts/architecture.md
+      - Domain model: concepts/domain-model.md
+      - Betting: concepts/betting.md
+      - Money and settlement: concepts/money-and-settlement.md
+  - API:
+      - Overview: api/overview.md
+      - Authentication: api/authentication.md
+      - Client workflow: api/examples.md
+      - Errors and idempotency: api/errors-and-idempotency.md
+      - Protobuf reference: api/grpc-reference.md
+      - Kotlin reference: library-api.md
+  - User guides:
+      - Event administration: guides/event-administration.md
+      - Cashier and betting: guides/cashier-and-betting.md
+      - Settlement: guides/settlement.md
+      - Cashout: guides/cashout.md
+      - Printing: guides/printing.md
+  - Deployment:
+      - JVM and containers: deployment/jvm-and-containers.md
+      - Helm and clusters: deployment/helm.md
+      - Database: deployment/database.md
+      - Release verification: deployment/release-verification.md
+  - Operations: operations/recovery.md
+  - Configuration: reference/configuration.md
+  - Development:
+      - Building and contributing: development/building.md
+      - Documentation: development/documentation.md
+  - License: license.md

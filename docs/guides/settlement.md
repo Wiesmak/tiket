@@ -1,12 +1,4 @@
-# Phase 5: refunds, results and settlement
-
-## Contracts and ownership
-
-The version-1 Java gRPC contracts preserve every existing operation. RaceService adds
-ScratchHorse(ScratchHorseRequest) and VoidRace(RaceCommand). ResultService adds SubmitResult,
-VerifyResult, GetResult, ListResultRevisions, SettleRace, GetSettlement and ListRaceLegResolutions.
-RaceFinancialApplicationService orchestrates these operations; core owns every eligibility,
-refund, lifecycle and settlement decision. No REST, new betting type or wallet is introduced.
+# Refunds, results and settlement
 
 Mutation requests carry a RaceCommand with race-day/race UUIDs, both expected versions and an
 idempotency key. ScratchHorse adds a horse UUID; SubmitResult adds a unique revision (1–128
@@ -171,28 +163,3 @@ potential bottlenecks for large winning populations; changing the core snapshot 
 separate design and measurement. The 9,900-leg regression measured scratch plus settlement at 3,323 ms in the focused local run
 (198 refunded legs; 9,702 settlement outcomes; purchase time excluded). This is a local regression
 measurement, not a throughput guarantee.
-
-V1–V4 migrations remain unchanged; no V5 or redundant tables are needed. Existing deferred settlement
-and idempotency triggers remain active. The current service is unauthenticated plaintext on loopback.
-Caller UUIDs are identifiers, never proof of identity. Production TLS and distinct cashier, event
-administrator and result-verifier permissions remain Phase 7 work.
-
-Phase 6 can add final financial reporting, promotional forfeiture execution, final withdrawals and
-race-day COMPLETED/CLOSED commands. None are exposed by Phase 5. Physical printers and exceptional
-result reversal/settlement policies remain outside this implementation.
-
-## Validation record (2026-11-10)
-
-All five modules passed clean build with configuration/build cache disabled. Core's 34 tests
-actually executed in that build; a subsequent standalone core:test was up-to-date.
-The final standalone backend:test executed 85 tests against PostgreSQL 18 Testcontainers:
-63 existing tests, two persistence boundary/delta tests and 20 Phase 5 gRPC/concurrency scenarios.
-There were zero failures, errors or skipped tests. The final 9,900-leg measurement was 3,232 ms.
-Explicit contracts:build and backend:bootJar commands also passed (bootJar was up-to-date after
-its successful creation in clean build). Core consumer compatibility compilation passed.
-
-Commands used the checked-in gradlew.bat, --no-configuration-cache, --max-workers=1 and
--Pkotlin.compiler.execution.strategy=in-process. Clean build additionally used --no-build-cache.
-No permanent JVM settings or dependency versions changed. Initial overlapping build attempts
-produced a daemon crash/compiler failures; serial clean validation resolved them.
-Local validation logs are retained under build/phase5-validation (ignored build output).

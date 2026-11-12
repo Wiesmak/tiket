@@ -1,8 +1,4 @@
-# Phase 3 administration
-
-**Development security boundary:** all administrative RPCs are unauthenticated. Keep the default
-plaintext listener on 127.0.0.1. Do not expose it to untrusted networks before authentication,
-authorization and TLS are implemented.
+# Event administration
 
 ## Contracts
 
@@ -34,7 +30,8 @@ Definitions are one-shot, including during DRAFT. There is no draft replacement/
 A future editing workflow needs separately designed versioned immutable definitions.
 Publication and start reconstruct the complete definition and authoritative race states and call core.
 Finalization can leave scheduled or closed races for later resolution; it cannot reopen betting.
-Completion and closure are deliberately absent.
+
+Completion and closure are available after financial proof; see [cashout](cashout.md). See [authentication](../api/authentication.md) for current security.
 
 ## Transactions and replay
 
@@ -89,25 +86,3 @@ paid/promotional wallets. The database ledger and core still reconcile financial
 Runtime roles must not own tables or have DDL/trigger-disabling privileges; use separate migration
 credentials in production. Account history replay and complete enrollment lists are currently
 unbounded and should be measured before large deployments.
-
-## Verification and deferred work
-
-AdministrationTests uses real Testcontainers PostgreSQL with generated stubs through Spring's
-in-process transport and loopback Netty. Concurrency tests use barriers and separate transactions,
-without sleeps. Existing persistence and Ping tests remain enabled.
-
-Phase 4 can build coupon purchase orchestration on these immutable configurations, authoritative
-accounts, versions, lock order and durable command handling. Purchases, scratches, voiding, refunds,
-results, settlement, withdrawals/cashout, printing and final event completion/closure are deferred
-to Phases 4–6. No REST or gRPC-Web gateway is provided.
-
-## Local validation results
-
-All four requested Gradle commands completed successfully with configuration cache disabled,
-one worker and in-process Kotlin compilation: clean build, :tiket-contracts:build,
-:tiket-backend:test and :tiket-backend:bootJar. The final backend run executed 28 tests:
-8 administration, 16 persistence, 1 PostgreSQL startup, 1 Netty Ping and 2 application tests;
-zero failures and zero skips. The clean build reused 33 successful unchanged core tests from
-Gradle's build cache and compiled the public consumer compatibility source set from cache.
-Fresh migration and populated V2 upgrade both passed on PostgreSQL 18 Testcontainers.
-An earlier IDE build attempt hit local GraalVM pagefile exhaustion; the requested CLI builds passed.

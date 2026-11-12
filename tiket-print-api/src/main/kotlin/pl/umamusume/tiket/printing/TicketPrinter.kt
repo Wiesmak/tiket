@@ -41,8 +41,10 @@ sealed interface PrintResult {
     data class Failed(val message: String, val retryable: Boolean) : PrintResult
 }
 
+/** Adapter extension point. Inputs are already priced and resolved; implementations must not alter financial facts.
+ * Dispatch may be repeated after a crash, so physical output can duplicate without another purchase.
+ */
 fun interface TicketPrinter {
     /** Dispatch can be repeated following a crash; this does not promise physical printing. */
     fun print(data: TicketPrintData): PrintResult
 }
-
